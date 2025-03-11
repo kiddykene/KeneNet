@@ -13,7 +13,7 @@ def _quick_print(message, l=None):
 
 
 def get_pos(key='f10', kill=False):
-    def _get_pos(key):
+    def _get_pos(key, lineno):
         while True:
             keyboard.wait(key)
             x, y = zhmiscellany.misc.get_mouse_xy()
@@ -23,13 +23,13 @@ def get_pos(key='f10', kill=False):
                 rgb = screenshot.pixel(0, 0)
             color = f"\033[38;2;{rgb[0]};{rgb[1]};{rgb[2]}m"
             reset = "\033[0m"
-            frame = inspect.currentframe().f_back.f_back
-            lineno = frame.f_lineno
             _quick_print(f"Coordinates: ({x}, {y}), RGB: {rgb} {color}████████{reset}", lineno)
             if kill:
                 _quick_print('killing process')
                 zhmiscellany.misc.die()
-    zhmiscellany.processing.start_daemon(target=_get_pos, args=(key,))
+    frame = inspect.currentframe().f_back
+    lineno = frame.f_lineno
+    zhmiscellany.processing.start_daemon(target=_get_pos, args=(key, lineno, ))
 
 def time_it(clock=1):
     if clock in timings:
