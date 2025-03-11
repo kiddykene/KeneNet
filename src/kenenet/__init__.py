@@ -7,9 +7,7 @@ def adding(a, b):
 
 def _quick_print(message, l=None):
     if l:
-        frame = inspect.currentframe().f_back
-        lineno = frame.f_lineno
-        sys.stdout.write(f"\033[38;2;0;255;26m{lineno} || {message}\033[0m\n")
+        sys.stdout.write(f"\033[38;2;0;255;26m{l} || {message}\033[0m\n")
     else:
         sys.stdout.write(f"\033[38;2;0;255;26m {message}\033[0m\n")
 
