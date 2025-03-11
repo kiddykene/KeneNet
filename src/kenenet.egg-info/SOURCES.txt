@@ -1,9 +1,0 @@
-MANIFEST.in
-README.md
-pyproject.toml
-setup.cfg
-src/kenenet/__init__.py
-src/kenenet.egg-info/PKG-INFO
-src/kenenet.egg-info/SOURCES.txt
-src/kenenet.egg-info/dependency_links.txt
-src/kenenet.egg-info/top_level.txt
