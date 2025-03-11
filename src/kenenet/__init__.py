@@ -10,12 +10,14 @@ def get_pos(key='f10', kill=False):
             keyboard.wait(key)
             image = ImageGrab.grab()
             x, y = zhmiscellany.misc.get_mouse_xy()
-            rgb = image.getpixel((x, y))
-            print(f"Coordinates: ({x}, {y}), RGB: {rgb}")
+            r, g, b = image.getpixel((x, y))
+            color_block = f"\033[48;2;{r};{g};{b}m  \033[0m"
+            z.l(f"Coordinates: ({x}, {y}), RGB: ({r}, {g}, {b}) {color_block}")
             if kill:
-                print('killing process')
+                z.l('killing process')
                 zhmiscellany.misc.die()
     zhmiscellany.processing.start_daemon(target=_get_pos, args=(key,))
+
     
 class k:
     pass
