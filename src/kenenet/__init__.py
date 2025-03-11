@@ -8,11 +8,11 @@ def get_pos(key='f10', kill=False):
     def _get_pos(key):
         while True:
             keyboard.wait(key)
+            x, y = zhmiscellany.misc.get_mouse_xy()
             with mss.mss() as sct:
-                x, y = zhmiscellany.misc.get_mouse_xy()
-                monitor = next(m for m in sct.monitors if m["left"] <= x < m["left"] + m["width"] and m["top"] <= y < m["top"] + m["height"])
-                screenshot = sct.grab(monitor)
-                rgb = screenshot.pixel(x - monitor["left"], y - monitor["top"])
+                region = {"left": x, "top": y, "width": 1, "height": 1}
+                screenshot = sct.grab(region)
+                rgb = screenshot.pixel(0, 0)
             color = f"\033[38;2;{rgb[0]};{rgb[1]};{rgb[2]}m"
             reset = "\033[0m"
             print(f"Coordinates: ({x}, {y}), RGB: {rgb} {color}████████{reset}")
