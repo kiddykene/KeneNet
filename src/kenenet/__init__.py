@@ -33,7 +33,8 @@ class k:
 
 objs = get_defined_objects()
 for ob in objs:
-    setattr(k, ob.__name__, ob)
+    if hasattr(ob, '__name__'):
+        setattr(k, ob.__name__, ob)
 
 if '__main__' in sys.modules:
     sys.modules['__main__'].__dict__['k'] = k
