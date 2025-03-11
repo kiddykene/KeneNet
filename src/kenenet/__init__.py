@@ -5,10 +5,13 @@ timings = {}
 def adding(a, b):
     return a + b
 
-def _quick_print(message):
-    frame = inspect.currentframe().f_back
-    lineno = frame.f_lineno
-    sys.stdout.write(f"\033[38;2;0;255;26m{lineno} || {message}\033[0m\n")
+def _quick_print(message, l=None):
+    if l:
+        frame = inspect.currentframe().f_back
+        lineno = frame.f_lineno
+        sys.stdout.write(f"\033[38;2;0;255;26m{lineno} || {message}\033[0m\n")
+    else:
+        sys.stdout.write(f"\033[38;2;0;255;26m {message}\033[0m\n")
 
 
 def get_pos(key='f10', kill=False):
@@ -22,7 +25,9 @@ def get_pos(key='f10', kill=False):
                 rgb = screenshot.pixel(0, 0)
             color = f"\033[38;2;{rgb[0]};{rgb[1]};{rgb[2]}m"
             reset = "\033[0m"
-            _quick_print(f"Coordinates: ({x}, {y}), RGB: {rgb} {color}████████{reset}")
+            frame = inspect.currentframe().f_back
+            lineno = frame.f_lineno
+            _quick_print(f"Coordinates: ({x}, {y}), RGB: {rgb} {color}████████{reset}", lineno)
             if kill:
                 _quick_print('killing process')
                 zhmiscellany.misc.die()
@@ -30,10 +35,10 @@ def get_pos(key='f10', kill=False):
 
 def time_it(clock=1):
     if clock in timings:
-        elapsed = timings[clock] - time.time()
+        elapsed = time.time() - timings[clock]
         frame = inspect.currentframe().f_back
         lineno = frame.f_lineno
-        _quick_print(f'{lineno} | Timer {clock} took \033[97m{elapsed}\033[0m seconds')
+        _quick_print(f'Timer {clock} took \033[97m{elapsed}\033[0m seconds', lineno)
         del timings[clock]
     else:
         timings[clock] = time.time()
