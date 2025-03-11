@@ -2,14 +2,10 @@ import inspect, sys, zhmiscellany, keyboard, mss, time, sys
 
 global timings
 timings = {}
-def adding(a, b):
-    return a + b
 
 def _quick_print(message, l=None):
-    if l:
-        sys.stdout.write(f"\033[38;2;0;255;26m{l} || {message}\033[0m\n")
-    else:
-        sys.stdout.write(f"\033[38;2;0;255;26m {message}\033[0m\n")
+    if l: sys.stdout.write(f"\033[38;2;0;255;26m{l} || {message}\033[0m\n")
+    else: sys.stdout.write(f"\033[38;2;0;255;26m {message}\033[0m\n")
 
 
 def get_pos(key='f10', kill=False):
@@ -31,7 +27,7 @@ def get_pos(key='f10', kill=False):
     lineno = frame.f_lineno
     zhmiscellany.processing.start_daemon(target=_get_pos, args=(key, lineno, ))
 
-def time_it(clock=1):
+def timer(clock=1):
     if clock in timings:
         elapsed = time.time() - timings[clock]
         frame = inspect.currentframe().f_back
@@ -41,7 +37,27 @@ def time_it(clock=1):
     else:
         timings[clock] = time.time()
 
-    
+def pp(msg='caca', subdir=None, pps=3):
+    import os, subprocess
+    os_current = os.getcwd()
+    os.chdir(os.path.dirname(__file__))
+    if subdir: os.chdir(subdir)
+    def push(message):
+        os.system('git add .')
+        os.system(f'git commit -m "{message}"')
+        os.system('git push -u origin master')
+    def pull():
+        os.system('git pull origin master')
+    def push_pull(message):
+        push(message)
+        pull()
+    result = subprocess.run(['git', 'rev-list', '--count', '--all'], capture_output=True, text=True)
+    result = int(result.stdout.strip()) + 1
+    for i in range(pps):
+        push_pull(msg)
+    _quick_print('PP finished B======D')
+    os.chdir(os_current)
+
 class k:
     pass
 
