@@ -13,7 +13,7 @@ def get_pos(key='f10', kill=False):
             rgb = image.getpixel((x, y))
             color = f"\033[38;2;{rgb[0]};{rgb[1]};{rgb[2]}m"
             reset = "\033[0m"
-            print(f"Coordinates: ({x}, {y}), RGB: {color}{rgb}{reset}")
+            print(f"Coordinates: ({x}, {y}), RGB: {rgb} {color}████████{reset}")
             if kill:
                 print('killing process')
                 zhmiscellany.misc.die()
