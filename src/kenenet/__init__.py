@@ -5,8 +5,10 @@ timings = {}
 def adding(a, b):
     return a + b
 
-def quick_print(message):
-    sys.stdout.write(f"\033[94m{message}\033[0m\n")
+def _quick_print(message):
+    frame = inspect.currentframe().f_back
+    lineno = frame.f_lineno
+    sys.stdout.write(f"\033[38;2;0;255;26m{lineno} || {message}\033[0m\n")
 
 
 def get_pos(key='f10', kill=False):
@@ -20,21 +22,21 @@ def get_pos(key='f10', kill=False):
                 rgb = screenshot.pixel(0, 0)
             color = f"\033[38;2;{rgb[0]};{rgb[1]};{rgb[2]}m"
             reset = "\033[0m"
-            quick_print(f"Coordinates: ({x}, {y}), RGB: {rgb} {color}████████{reset}")
+            _quick_print(f"Coordinates: ({x}, {y}), RGB: {rgb} {color}████████{reset}")
             if kill:
-                quick_print('killing process')
+                _quick_print('killing process')
                 zhmiscellany.misc.die()
     zhmiscellany.processing.start_daemon(target=_get_pos, args=(key,))
 
 def time_it(clock=1):
     if clock in timings:
         elapsed = timings[clock] - time.time()
-        print()
+        frame = inspect.currentframe().f_back
+        lineno = frame.f_lineno
+        _quick_print(f'{lineno} | Timer {clock} took \033[97m{elapsed}\033[0m seconds')
+        del timings[clock]
     else:
         timings[clock] = time.time()
-    frame = inspect.currentframe().f_back
-    filename = frame.f_code.co_filename
-    lineno = frame.f_lineno
 
     
 class k:
