@@ -23,7 +23,7 @@ def get_pos(key='f10', kill=False):
                 rgb = screenshot.pixel(0, 0)
             color = f"\033[38;2;{rgb[0]};{rgb[1]};{rgb[2]}m"
             reset = "\033[0m"
-            frame = inspect.currentframe().f_back
+            frame = inspect.currentframe().f_back.f_back.f_back
             lineno = frame.f_lineno
             _quick_print(f"Coordinates: ({x}, {y}), RGB: {rgb} {color}████████{reset}", lineno)
             if kill:
