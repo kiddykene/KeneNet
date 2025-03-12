@@ -1,5 +1,4 @@
-import inspect, sys, zhmiscellany, keyboard, mss, time, sys
-
+import inspect, sys, zhmiscellany, keyboard, mss, time, linecache, types
 global timings
 timings = {}
 
@@ -36,6 +35,81 @@ def timer(clock=1):
         del timings[clock]
     else:
         timings[clock] = time.time()
+
+
+def _make_trace_function(ignore_special_vars=False, ignore_functions=False, ignore_classes=False, ignore_modules=False, ignore_file_path=False):
+    """
+    Returns a trace function that prints each executed line along with local variables.
+
+    Parameters:
+      ignore_special_vars (bool): If True, ignores special system variables such as:
+            __name__, __doc__, __package__, __loader__, __spec__, __annotations__, __file__, __cached__
+      ignore_functions (bool): If True, ignores function objects.
+      ignore_classes (bool): If True, ignores class objects.
+      ignore_modules (bool): If True, ignores module objects.
+      ignore_file_path (bool): If True, does not print the file path in the header.
+    """
+    special_vars = {
+        "__name__", "__doc__", "__package__", "__loader__",
+        "__spec__", "__annotations__", "__file__", "__cached__"
+    }
+    
+    def trace_lines(frame, event, arg):
+        if event == 'line':
+            filename = frame.f_code.co_filename
+            lineno = frame.f_lineno
+            code_line = linecache.getline(filename, lineno).strip()
+            # Header for readability.
+            header = f"Executing line {lineno}:" if ignore_file_path else f"Executing {filename}:{lineno}:"
+            _quick_print("=" * 60)
+            _quick_print(header, lineno)
+            _quick_print(f"  {code_line}", lineno)
+            _quick_print("-" * 60, lineno)
+            _quick_print("Local Variables:", lineno)
+            for var, value in frame.f_locals.items():
+                if ignore_special_vars and var in special_vars:
+                    continue
+                if ignore_modules and isinstance(value, types.ModuleType):
+                    continue
+                if ignore_functions and isinstance(value, types.FunctionType):
+                    continue
+                if ignore_classes and isinstance(value, type):
+                    continue
+                _quick_print(f"  {var} = {value}", lineno)
+            _quick_print("=" * 60, lineno)
+        return trace_lines
+    
+    return trace_lines
+
+
+def dbug(ignore_special_vars=True, ignore_functions=True, ignore_classes=True, ignore_modules=True, ignore_file_path=True):
+    """
+    Activates the line-by-line tracing of code execution.
+
+    Parameters:
+      ignore_special_vars (bool): If True, omits special variables (e.g. __name__, __doc__, etc.)
+      ignore_functions (bool): If True, omits function objects.
+      ignore_classes (bool): If True, omits class objects.
+      ignore_modules (bool): If True, omits module objects.
+      ignore_file_path (bool): If True, only the line number is shown instead of the full file path.
+    """
+    trace_func = _make_trace_function(
+        ignore_special_vars=ignore_special_vars,
+        ignore_functions=ignore_functions,
+        ignore_classes=ignore_classes,
+        ignore_modules=ignore_modules,
+        ignore_file_path=ignore_file_path
+    )
+    sys.settrace(trace_func)
+    # Force the current (global) frame to be traced.
+    sys._getframe().f_trace = trace_func
+    _quick_print("Tracing activated.")
+
+
+def dbug_stop():
+    """Deactivates the tracing."""
+    sys.settrace(None)
+    _quick_print("Tracing deactivated.")
 
 def pp(msg='caca', subdir=None, pps=3):
     import os, subprocess
