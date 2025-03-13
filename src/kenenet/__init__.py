@@ -1,4 +1,6 @@
-import inspect, sys, zhmiscellany, keyboard, mss, time, linecache, types
+import inspect, sys, zhmiscellany, keyboard, mss, time, linecache, types, os
+import numpy as np
+from PIL import Image
 global timings
 timings = {}
 
@@ -118,6 +120,19 @@ def pp(msg='caca', subdir=None, pps=3):
         push_pull(msg)
     _quick_print('PP finished B======D')
     os.chdir(os_current)
+
+def save_img(img, name='', file='temp_screenshots'):
+    if os.path.exists(file): zhmiscellany.fileio.empty_directory(file)
+    else: zhmiscellany.fileio.create_folder(file)
+    frame = inspect.currentframe().f_back
+    lineno = frame.f_lineno
+    if isinstance(img, np.ndarray):
+        save_name = name + f'{time.time()}'
+        img = Image.fromarray(img)
+        img.save(f'{file}/{save_name}.png')
+        _quick_print(f'Saved image as {save_name}', lineno)
+    else:
+        _quick_print(f"Your img is not a fucking numpy array you twat, couldn't save {name}", lineno)
 
 class k:
     pass
