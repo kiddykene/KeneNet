@@ -1,7 +1,8 @@
 import inspect, sys, zhmiscellany, keyboard, mss, time, linecache, types, os
 import numpy as np
 from PIL import Image
-global timings
+global timings, ospid
+ospid = None
 timings = {}
 
 def _quick_print(message, l=None):
@@ -122,8 +123,11 @@ def pp(msg='caca', subdir=None, pps=3):
     os.chdir(os_current)
 
 def save_img(img, name='', file='temp_screenshots'):
-    if os.path.exists(file): zhmiscellany.fileio.empty_directory(file)
-    else: zhmiscellany.fileio.create_folder(file)
+    global ospid
+    if ospid is None:
+        if os.path.exists(file): zhmiscellany.fileio.empty_directory(file)
+        else: zhmiscellany.fileio.create_folder(file)
+    ospid = True
     frame = inspect.currentframe().f_back
     lineno = frame.f_lineno
     if isinstance(img, np.ndarray):
