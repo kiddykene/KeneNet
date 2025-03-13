@@ -5,7 +5,7 @@ global timings, ospid
 ospid = None
 timings = {}
 
-def _quick_print(message, l=None):
+def quick_print(message, l=None):
     if l: sys.stdout.write(f"\033[38;2;0;255;26m{l} || {message}\033[0m\n")
     else: sys.stdout.write(f"\033[38;2;0;255;26m {message}\033[0m\n")
 
@@ -21,9 +21,9 @@ def get_pos(key='f10', kill=False):
                 rgb = screenshot.pixel(0, 0)
             color = f"\033[38;2;{rgb[0]};{rgb[1]};{rgb[2]}m"
             reset = "\033[0m"
-            _quick_print(f"Coordinates: ({x}, {y}), RGB: {rgb} {color}████████{reset}", lineno)
+            quick_print(f"Coordinates: ({x}, {y}), RGB: {rgb} {color}████████{reset}", lineno)
             if kill:
-                _quick_print('killing process')
+                quick_print('killing process')
                 zhmiscellany.misc.die()
     frame = inspect.currentframe().f_back
     lineno = frame.f_lineno
@@ -34,8 +34,9 @@ def timer(clock=1):
         elapsed = time.time() - timings[clock]
         frame = inspect.currentframe().f_back
         lineno = frame.f_lineno
-        _quick_print(f'Timer {clock} took \033[97m{elapsed}\033[0m seconds', lineno)
+        quick_print(f'Timer {clock} took \033[97m{elapsed}\033[0m seconds', lineno)
         del timings[clock]
+        return elapsed
     else:
         timings[clock] = time.time()
 
@@ -57,11 +58,11 @@ def make_trace_function(ignore_special_vars=True, ignore_functions=True, ignore_
                 return trace_lines
             
             header = f"Executing line {lineno}:" if ignore_file_path else f"Executing {filename}:{lineno}:"
-            _quick_print("=" * 60)
-            _quick_print(header, lineno)
-            _quick_print(f"  {code_line}", lineno)
-            _quick_print("-" * 60, lineno)
-            _quick_print("Local Variables:", lineno)
+            quick_print("=" * 60)
+            quick_print(header, lineno)
+            quick_print(f"  {code_line}", lineno)
+            quick_print("-" * 60, lineno)
+            quick_print("Local Variables:", lineno)
             
             for var, value in frame.f_locals.items():
                 if ignore_special_vars and var in special_vars:
@@ -73,11 +74,11 @@ def make_trace_function(ignore_special_vars=True, ignore_functions=True, ignore_
                 if ignore_classes and isinstance(value, type):
                     continue
                 try:
-                    _quick_print(f"  {var} = {repr(value)}", lineno)
+                    quick_print(f"  {var} = {repr(value)}", lineno)
                 except (AttributeError, TypeError, Exception):
-                    _quick_print(f"  {var} = [unreadable]", lineno)
+                    quick_print(f"  {var} = [unreadable]", lineno)
             
-            _quick_print("=" * 60, lineno)
+            quick_print("=" * 60, lineno)
         
         return trace_lines
     
@@ -94,12 +95,12 @@ def activate_tracing(ignore_special_vars=True, ignore_functions=True, ignore_cla
     )
     sys.settrace(trace_func)
     sys._getframe().f_trace = trace_func
-    _quick_print("Tracing activated.")
+    quick_print("Tracing activated.")
 
 
 def deactivate_tracing():
     sys.settrace(None)
-    _quick_print("Tracing deactivated.")
+    quick_print("Tracing deactivated.")
 
 def pp(msg='caca', subdir=None, pps=3):
     import os, subprocess
@@ -119,14 +120,19 @@ def pp(msg='caca', subdir=None, pps=3):
     result = int(result.stdout.strip()) + 1
     for i in range(pps):
         push_pull(msg)
-    _quick_print('PP finished B======D')
+    quick_print('PP finished B======D')
     os.chdir(os_current)
 
-def save_img(img, name='', file='temp_screenshots'):
+def save_img(img, name='', reset=True, file='temp_screenshots'):
     global ospid
     if ospid is None:
-        if os.path.exists(file): zhmiscellany.fileio.empty_directory(file)
-        else: zhmiscellany.fileio.create_folder(file)
+        if os.path.exists(file):
+            if reset:
+                zhmiscellany.fileio.empty_directory(file)
+                quick_print(f'Cleaned folder {file}')
+        else:
+            quick_print(f'New folder created {file}')
+            zhmiscellany.fileio.create_folder(file)
     ospid = True
     frame = inspect.currentframe().f_back
     lineno = frame.f_lineno
@@ -134,9 +140,9 @@ def save_img(img, name='', file='temp_screenshots'):
         save_name = name + f'{time.time()}'
         img = Image.fromarray(img)
         img.save(f'{file}/{save_name}.png')
-        _quick_print(f'Saved image as {save_name}', lineno)
+        quick_print(f'Saved image as {save_name}', lineno)
     else:
-        _quick_print(f"Your img is not a fucking numpy array you twat, couldn't save {name}", lineno)
+        quick_print(f"Your img is not a fucking numpy array you twat, couldn't save {name}", lineno)
 
 class k:
     pass
