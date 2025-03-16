@@ -1,7 +1,9 @@
-import inspect, sys, zhmiscellany, keyboard, mss, time, linecache, types, os
+import inspect, sys, zhmiscellany, keyboard, mss, time, linecache, types, os, random
 import numpy as np
 from PIL import Image
 global timings, ospid
+from pydub import AudioSegment
+from pydub.playback import play
 ospid = None
 timings = {}
 
@@ -144,6 +146,14 @@ def save_img(img, name='', reset=True, file='temp_screenshots'):
     else:
         quick_print(f"Your img is not a fucking numpy array you twat, couldn't save {name}", lineno)
 
+def load_audio(mp3_path):
+    AudioSegment.from_mp3(mp3_path)
+    
+def play_audio(file_sound, range=(0.9, 1.1)):
+    sound = file_sound
+    sound = sound._spawn(sound.raw_data, overrides={'frame_rate': int(sound.frame_rate * random.uniform(*range))})
+    zhmiscellany.processing.multiprocess_threaded(play, (sound,))
+    
 class k:
     pass
 
