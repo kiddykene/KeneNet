@@ -14,7 +14,7 @@ def quick_print(message, l=None):
 
 def get_pos(key='f10', kill=False):
     coordinates = []
-    def _get_pos(key, lineno, kill=False):
+    def _get_pos(key, kill=False):
         while True:
             keyboard.wait(key)
             x, y = zhmiscellany.misc.get_mouse_xy()
@@ -33,7 +33,7 @@ def get_pos(key='f10', kill=False):
     quick_print(f'Press {key} when ever you want the location')
     frame = inspect.currentframe().f_back
     lineno = frame.f_lineno
-    _get_pos(key=key, kill=kill)
+    _get_pos(key, kill)
     # zhmiscellany.processing.start_daemon(target=_get_pos, args=(key, lineno, ))
 
 def timer(clock=1):
