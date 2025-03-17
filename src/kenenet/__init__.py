@@ -13,7 +13,8 @@ def quick_print(message, l=None):
 
 
 def get_pos(key='f10', kill=False):
-    coordinates = []
+    coord_rgb = []
+    coords = []
     def _get_pos(key, kill=False):
         while True:
             keyboard.wait(key)
@@ -24,8 +25,9 @@ def get_pos(key='f10', kill=False):
                 rgb = screenshot.pixel(0, 0)
             color = f"\033[38;2;{rgb[0]};{rgb[1]};{rgb[2]}m"
             reset = "\033[38;2;0;255;26m"
-            coordinates.append({'coord': (x,y), 'RGB': rgb})
-            pyperclip.copy(str(coordinates))
+            coord_rgb.append({'coord': (x,y), 'RGB': rgb})
+            coords.append((x,y))
+            pyperclip.copy(f'coords_rgb = {coord_rgb}\ncoords = {coords}')
             quick_print(f"Added Coordinates: ({x}, {y}), RGB: {rgb} {color}████████{reset} to clipboard", lineno)
             if kill:
                 quick_print('killing process')
