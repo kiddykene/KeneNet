@@ -25,7 +25,7 @@ def get_pos(key='f10', kill=False):
             color = f"\033[38;2;{rgb[0]};{rgb[1]};{rgb[2]}m"
             reset = "\033[38;2;0;255;26m"
             coordinates.append({'coord': (x,y), 'RGB': rgb})
-            pyperclip.copy(coordinates)
+            pyperclip.copy(str(coordinates))
             quick_print(f"Added Coordinates: ({x}, {y}), RGB: {rgb} {color}████████{reset} to clipboard", lineno)
             if kill:
                 quick_print('killing process')
