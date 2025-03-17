@@ -1,4 +1,4 @@
-import inspect, sys, zhmiscellany, keyboard, mss, time, linecache, types, os, random
+import inspect, sys, zhmiscellany, keyboard, mss, time, linecache, types, os, random, pyperclip
 import numpy as np
 from PIL import Image
 global timings, ospid
@@ -13,6 +13,7 @@ def quick_print(message, l=None):
 
 
 def get_pos(key='f10', kill=False):
+    coordinates = []
     def _get_pos(key, lineno):
         while True:
             keyboard.wait(key)
@@ -22,14 +23,18 @@ def get_pos(key='f10', kill=False):
                 screenshot = sct.grab(region)
                 rgb = screenshot.pixel(0, 0)
             color = f"\033[38;2;{rgb[0]};{rgb[1]};{rgb[2]}m"
-            reset = "\033[0m"
-            quick_print(f"Coordinates: ({x}, {y}), RGB: {rgb} {color}████████{reset}", lineno)
+            reset = "\033[38;2;0;255;26m"
+            coordinates.append({'coord': (x,y), 'RGB': rgb})
+            pyperclip.copy(coordinates)
+            quick_print(f"Added Coordinates: ({x}, {y}), RGB: {rgb} {color}████████{reset} to clipboard", lineno)
             if kill:
                 quick_print('killing process')
                 zhmiscellany.misc.die()
+    quick_print(f'Press {key} when ever you want the location')
     frame = inspect.currentframe().f_back
     lineno = frame.f_lineno
-    zhmiscellany.processing.start_daemon(target=_get_pos, args=(key, lineno, ))
+    _get_pos(key=key, kill=kill)
+    # zhmiscellany.processing.start_daemon(target=_get_pos, args=(key, lineno, ))
 
 def timer(clock=1):
     if clock in timings:
@@ -147,7 +152,7 @@ def save_img(img, name='', reset=True, file='temp_screenshots'):
         quick_print(f"Your img is not a fucking numpy array you twat, couldn't save {name}", lineno)
 
 def load_audio(mp3_path):
-    AudioSegment.from_mp3(mp3_path)
+    return AudioSegment.from_mp3(mp3_path)
     
 def play_audio(file_sound, range=(0.9, 1.1)):
     sound = file_sound
