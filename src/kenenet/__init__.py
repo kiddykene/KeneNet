@@ -14,7 +14,7 @@ def quick_print(message, l=None):
 
 def get_pos(key='f10', kill=False):
     coordinates = []
-    def _get_pos(key, lineno):
+    def _get_pos(key, lineno, kill=False):
         while True:
             keyboard.wait(key)
             x, y = zhmiscellany.misc.get_mouse_xy()
