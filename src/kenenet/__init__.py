@@ -133,14 +133,13 @@ def pp(msg='caca', subdir=None, pps=3):
 
 def save_img(img, name='', reset=True, file='temp_screenshots'):
     global ospid
-    if ospid is None:
-        if os.path.exists(file):
-            if reset:
-                zhmiscellany.fileio.empty_directory(file)
-                quick_print(f'Cleaned folder {file}')
-        else:
-            quick_print(f'New folder created {file}')
-            zhmiscellany.fileio.create_folder(file)
+    if os.path.exists(file):
+        if reset and ospid is None:
+            zhmiscellany.fileio.empty_directory(file)
+            quick_print(f'Cleaned folder {file}')
+    else:
+        quick_print(f'New folder created {file}')
+        zhmiscellany.fileio.create_folder(file)
     ospid = True
     frame = inspect.currentframe().f_back
     lineno = frame.f_lineno
