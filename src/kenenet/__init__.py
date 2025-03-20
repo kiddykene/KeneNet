@@ -36,7 +36,6 @@ def get_pos(key='f10', kill=False):
     frame = inspect.currentframe().f_back
     lineno = frame.f_lineno
     _get_pos(key, kill)
-    # zhmiscellany.processing.start_daemon(target=_get_pos, args=(key, lineno, ))
 
 def timer(clock=1):
     if clock in timings:
@@ -148,12 +147,13 @@ def save_img(img, name='', reset=True, file='temp_screenshots'):
     if isinstance(img, np.ndarray):
         save_name = name + f'{time.time()}'
         img = Image.fromarray(img)
-        img.save(f'{file}/{save_name}.png')
+        img.save(fr'{file}\{save_name}.png')
         quick_print(f'Saved image as {save_name}', lineno)
     else:
         quick_print(f"Your img is not a fucking numpy array you twat, couldn't save {name}", lineno)
 
 def load_audio(mp3_path):
+    from zhmiscellany._processing_supportfuncs import _ray_init_thread; _ray_init_thread.join()
     return AudioSegment.from_mp3(mp3_path)
     
 def play_audio(file_sound, range=(0.9, 1.1)):
