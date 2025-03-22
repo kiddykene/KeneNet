@@ -131,7 +131,7 @@ def pp(msg='caca', subdir=None, pps=3):
     quick_print('PP finished B======D')
     os.chdir(os_current)
 
-def save_img(img, name='', reset=True, file='temp_screenshots'):
+def save_img(img, name=' ', reset=True, file='temp_screenshots', mute=False):
     global ospid
     if os.path.exists(file):
         if reset and ospid is None:
@@ -147,7 +147,7 @@ def save_img(img, name='', reset=True, file='temp_screenshots'):
         save_name = name + f'{time.time()}'
         img = Image.fromarray(img)
         img.save(fr'{file}\{save_name}.png')
-        quick_print(f'Saved image as {save_name}', lineno)
+        if not mute: quick_print(f'Saved image as {save_name}', lineno)
     else:
         quick_print(f"Your img is not a fucking numpy array you twat, couldn't save {name}", lineno)
 
