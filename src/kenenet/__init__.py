@@ -104,7 +104,7 @@ class _VariableTracker:
         quick_print(f"Stopped debugging", lineno)
 
 def _track_frame(frame, event, arg):
-    tracker = _VariableTracker.get_instance()
+    tracker = _VariableTracker._get_instance()
     if not tracker.active or event != 'line': return _track_frame
 
     # Skip tracking if function name is 'quick_print'
