@@ -49,7 +49,7 @@ def timer(clock=1):
         timings[clock] = time.time()
 
 
-class _Config:
+class Config:
     EXCLUDED_NAMES = {'Config', 'VariableTracker', 'track_variables', 'stop_tracking',
                       'track_frame', 'sys', 'inspect', 'types', 'datetime',
                       'self', 'cls', 'args', 'kwargs', '__class__'}
@@ -57,66 +57,82 @@ class _Config:
     SHOW_TIMESTAMPS = True
     EXCLUDE_INTERNALS = True
 
-class _VariableTracker:
+
+class VariableTracker:
     _instance = None
+    
     @classmethod
-    def _get_instance(cls):
-        if cls._instance is None: cls._instance = _VariableTracker()
+    def get_instance(cls):
+        if cls._instance is None: cls._instance = VariableTracker()
         return cls._instance
+    
     def __init__(self):
         self.active = False
         self.tracked_module = None
         self.frame_locals = {}
         self.global_vars = {}
+    
     def fmt(self, v):
-        try: return repr(v)
-        except: return f"<{type(v).__name__} object>"
+        try:
+            return repr(v)
+        except:
+            return f"<{type(v).__name__} object>"
+    
     def print_change(self, name, old, new, scope="Global"):
-        ts = f"[{datetime.datetime.now().strftime('%H:%M:%S.%f')[:-3]}] " if _Config.SHOW_TIMESTAMPS else ""
+        ts = f"[{datetime.datetime.now().strftime('%H:%M:%S.%f')[:-3]}] " if Config.SHOW_TIMESTAMPS else ""
         print(f"{ts}{scope} '{name}' changed from {self.fmt(old)} to {self.fmt(new)}")
+    
     def _should_track_name(self, n):
-        return not (n.startswith('_') and n not in ('__name__','__file__')) and n not in _Config.EXCLUDED_NAMES
+        return not (n.startswith('_') and n not in ('__name__', '__file__')) and n not in Config.EXCLUDED_NAMES
+    
     def _should_track_frame(self, f):
-        if not _Config.EXCLUDE_INTERNALS:
+        if not Config.EXCLUDE_INTERNALS:
             return True
         fn = f.f_code.co_filename
-        if any(e in fn for e in _Config.EXCLUDED_FILES):
+        if any(e in fn for e in Config.EXCLUDED_FILES):
             return False
         # Exclude known internal shutdown and list comprehension functions.
         if f.f_code.co_name in ('tracked_setattr', 'fmt', 'print_change', 'track_globals', 'get_instance',
-                                 '_maintain_shutdown_locks', '_shutdown', '_stop', '<listcomp>'):
+                                '_maintain_shutdown_locks', '_shutdown', '_stop', '<listcomp>'):
             return False
         return True
-    def _start_tracking(self, mod_name):
+    
+    def start_tracking(self, mod_name):
         if self.active: return
         self.tracked_module = sys.modules[mod_name]
         for name, value in self.tracked_module.__dict__.items():
             if self._should_track_name(name):
                 self.global_vars[name] = value
-        sys.settrace(_track_frame)
+        sys.settrace(track_frame)
         self.active = True
         print(f"Variable tracking started at {datetime.datetime.now().strftime('%H:%M:%S.%f')[:-3]}")
-    def _stop_tracking(self):
+    
+    def stop_tracking(self):
         if not self.active: return
         sys.settrace(None)
-        self.frame_locals.clear(); self.global_vars.clear(); self.active = False
+        self.frame_locals.clear();
+        self.global_vars.clear();
+        self.active = False
         print(f"Variable tracking stopped at {datetime.datetime.now().strftime('%H:%M:%S.%f')[:-3]}")
 
-def _track_frame(frame, event, arg):
-    tracker = _VariableTracker._get_instance()
+
+def track_frame(frame, event, arg):
+    tracker = VariableTracker.get_instance()
     if not tracker.active or not tracker._should_track_frame(frame):
-        return _track_frame
+        return track_frame
     if event != 'line':
-        return _track_frame
+        return track_frame
     fid, is_mod = id(frame), frame.f_code.co_name == '<module>'
     scope = "Global" if is_mod else f"Local in '{frame.f_code.co_name}'"
     curr = {n: v for n, v in frame.f_locals.items() if tracker._should_track_name(n)}
     if is_mod:
         for n, v in curr.items():
             if n not in tracker.global_vars:
-                tracker.print_change(n, None, v, scope); tracker.global_vars[n] = v
+                tracker.print_change(n, None, v, scope);
+                tracker.global_vars[n] = v
             elif tracker.global_vars[n] != v:
-                tracker.print_change(n, tracker.global_vars[n], v, scope); tracker.global_vars[n] = v
+                tracker.print_change(n, tracker.global_vars[n], v, scope);
+                tracker.global_vars[n] = v
     else:
         if fid in tracker.frame_locals:
             for n, v in curr.items():
@@ -130,17 +146,19 @@ def _track_frame(frame, event, arg):
         tracker.frame_locals[fid] = curr.copy()
     if event == 'return' and not is_mod and fid in tracker.frame_locals:
         del tracker.frame_locals[fid]
-    return _track_frame
+    return track_frame
 
-def debug():
+
+def track_variables():
     cf = inspect.currentframe().f_back
     mod = cf.f_globals['__name__']
-    _VariableTracker._get_instance()._start_tracking(mod)
-    cf.f_trace = _track_frame
-    atexit.register(stop_debug)
+    VariableTracker.get_instance().start_tracking(mod)
+    cf.f_trace = track_frame
+    atexit.register(stop_tracking)
 
-def stop_debug():
-    _VariableTracker._get_instance()._stop_tracking()
+
+def stop_tracking():
+    VariableTracker.get_instance().stop_tracking()
 
 def pp(msg='caca', subdir=None, pps=3):
     import os, subprocess
