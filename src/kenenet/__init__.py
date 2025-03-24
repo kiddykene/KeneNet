@@ -105,11 +105,11 @@ class _VariableTracker:
 
 def _track_frame(frame, event, arg):
     tracker = _VariableTracker.get_instance()
-    if not tracker.active or event != 'line': return track_frame
+    if not tracker.active or event != 'line': return _track_frame
 
     # Skip tracking if function name is 'quick_print'
     if frame.f_code.co_name == 'quick_print':
-        return track_frame
+        return _track_frame
 
     scope = "Global" if frame.f_code.co_name == '<module>' else f"Local in '{frame.f_code.co_name}'"
     current_vars = {name: value for name, value in (frame.f_locals if scope != "Global" else frame.f_globals).items() if tracker._should_track(name)}
