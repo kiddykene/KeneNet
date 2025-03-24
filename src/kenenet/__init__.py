@@ -134,7 +134,7 @@ def _track_frame(frame, event, arg):
                     tracker.print_change(name, tracker.frame_locals[frame_id][name], value, scope)
         tracker.frame_locals[frame_id] = current_vars
     if event == 'return' and scope != "Global": del tracker.frame_locals[id(frame)]
-    return track_frame
+    return _track_frame
 
 def debug():
     global debug_mode
