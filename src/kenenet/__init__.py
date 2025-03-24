@@ -49,7 +49,7 @@ def timer(clock=1):
 
 class _Config:
     EXCLUDED_NAMES = {'Config', 'VariableTracker', 'track_variables', 'stop_tracking',
-                      'track_frame', 'sys', 'inspect', 'types', 'datetime',
+                      'track_frame', 'sys', 'inspect', 'types', 'datetime', 'quick_print',
                       'self', 'cls', 'args', 'kwargs', '__class__'}
     EXCLUDED_FILES = {'<string>', '<frozen importlib', 'importlib', 'abc.py', 'typing.py', '_collections_abc.py'}
     SHOW_TIMESTAMPS = True
@@ -76,7 +76,7 @@ class _VariableTracker:
             return f"<{type(value).__name__} object>"
     
     def _print_change(self, name, old, new, scope="Global"):
-        frame = inspect.currentframe().f_back
+        frame = inspect.currentframe().f_back.f_back
         lineno = frame.f_lineno
         quick_print(f"{scope} '{name}' changed from {self._format_value(old)} -> {self._format_value(new)}", lineno)
     
@@ -90,7 +90,7 @@ class _VariableTracker:
         sys.settrace(_track_frame)
         self.active = True
         frame = inspect.currentframe().f_back
-        lineno = frame.f_lineno
+        lineno = frame.f_lineno.f_back
         quick_print(f"Started debugging", lineno)
     
     def _stop_tracking(self):
@@ -99,7 +99,7 @@ class _VariableTracker:
         self.frame_locals.clear()
         self.global_vars.clear()
         self.active = False
-        frame = inspect.currentframe().f_back
+        frame = inspect.currentframe().f_back.f_back
         lineno = frame.f_lineno
         quick_print(f"Stopped debugging", lineno)
 
