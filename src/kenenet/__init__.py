@@ -143,29 +143,18 @@ def track_frame(frame, event, arg):
 # PUBLIC API
 # ==========================================================================
 
-debug_mode = False  # Global variable to track if debugging is enabled
-
-
-def track_variables():
-    caller_frame = inspect.currentframe().f_back
-    module_name = caller_frame.f_globals['__name__']
-    tracker = VariableTracker.get_instance()
-    tracker.start_tracking(module_name)
-    caller_frame.f_trace = track_frame
-
-
-def stop_tracking():
-    VariableTracker.get_instance().stop_tracking()
-
-
 def debug():
     global debug_mode
     if not debug_mode:
         debug_mode = True
-        track_variables()
+        caller_frame = inspect.currentframe().f_back
+        module_name = caller_frame.f_globals['__name__']
+        tracker = VariableTracker.get_instance()
+        tracker.start_tracking(module_name)
+        caller_frame.f_trace = track_frame
     else:
         debug_mode = False
-        stop_tracking()
+        VariableTracker.get_instance().stop_tracking()
 
 def pp(msg='caca', subdir=None, pps=3):
     import os, subprocess
