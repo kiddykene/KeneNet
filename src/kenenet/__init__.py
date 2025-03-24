@@ -49,7 +49,7 @@ def timer(clock=1):
 
 class _Config:
     EXCLUDED_NAMES = {'Config', 'VariableTracker', 'track_variables', 'stop_tracking',
-                      'track_frame', 'sys', 'inspect', 'types', 'datetime', 'quick_print',
+                      'track_frame', 'sys', 'inspect', 'types', 'datetime',
                       'self', 'cls', 'args', 'kwargs', '__class__'}
     EXCLUDED_FILES = {'<string>', '<frozen importlib', 'importlib', 'abc.py', 'typing.py', '_collections_abc.py'}
     SHOW_TIMESTAMPS = True
