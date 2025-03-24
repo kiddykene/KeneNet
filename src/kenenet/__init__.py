@@ -75,9 +75,7 @@ class _VariableTracker:
         except:
             return f"<{type(value).__name__} object>"
     
-    def _print_change(self, name, old, new, scope="Global"):
-        frame = inspect.currentframe().f_back
-        lineno = frame.f_lineno
+    def _print_change(self, name, old, new, lineno, scope="Global"):
         quick_print(f"{scope} '{name}' changed from {self._format_value(old)} -> {self._format_value(new)}", lineno)
     
     def _should_track(self, name):
@@ -114,27 +112,30 @@ def _track_frame(frame, event, arg):
     scope = "Global" if frame.f_code.co_name == '<module>' else f"Local in '{frame.f_code.co_name}'"
     current_vars = {name: value for name, value in (frame.f_locals if scope != "Global" else frame.f_globals).items() if tracker._should_track(name)}
 
+    line_number = frame.f_lineno  # Capture the line number where the change occurred
+
     if scope == "Global":
         for name, value in current_vars.items():
             if name not in tracker.global_vars:
-                tracker._print_change(name, None, value, scope)
+                tracker._print_change(name, None, value, scope, line_number)
             elif tracker.global_vars[name] != value:
-                tracker._print_change(name, tracker.global_vars[name], value, scope)
+                tracker._print_change(name, tracker.global_vars[name], value, scope, line_number)
         tracker.global_vars.update(current_vars)
     else:
         frame_id = id(frame)
         if frame_id not in tracker.frame_locals:
             for name, value in current_vars.items():
-                tracker._print_change(name, None, value, scope)
+                tracker._print_change(name, None, value, scope, line_number)
         else:
             for name, value in current_vars.items():
                 if name not in tracker.frame_locals[frame_id]:
-                    tracker._print_change(name, None, value, scope)
+                    tracker._print_change(name, None, value, scope, line_number)
                 elif tracker.frame_locals[frame_id][name] != value:
-                    tracker._print_change(name, tracker.frame_locals[frame_id][name], value, scope)
+                    tracker._print_change(name, tracker.frame_locals[frame_id][name], value, scope, line_number)
         tracker.frame_locals[frame_id] = current_vars
     if event == 'return' and scope != "Global": del tracker.frame_locals[id(frame)]
     return _track_frame
+
 
 def debug():
     global debug_mode
