@@ -98,7 +98,7 @@ class _VariableTracker:
         self.global_vars.clear()
         self.active = False
         frame = inspect.currentframe().f_back.f_back
-        lineno = frame.f_lineno.fba
+        lineno = frame.f_lineno
         quick_print(f"Stopped debugging", lineno)
 
 def _track_frame(frame, event, arg):
