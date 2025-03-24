@@ -49,7 +49,7 @@ def timer(clock=1):
 
 class _Config:
     EXCLUDED_NAMES = {'Config', 'VariableTracker', 'track_variables', 'stop_tracking',
-                      'track_frame', 'sys', 'inspect', 'types', 'datetime',
+                      'track_frame', 'sys', 'inspect', 'types', 'datetime', 'quick_print',
                       'self', 'cls', 'args', 'kwargs', '__class__'}
     EXCLUDED_FILES = {'<string>', '<frozen importlib', 'importlib', 'abc.py', 'typing.py', '_collections_abc.py'}
     SHOW_TIMESTAMPS = True
@@ -81,9 +81,7 @@ class _VariableTracker:
         quick_print(f"{scope} '{name}' changed from {self._format_value(old)} -> {self._format_value(new)}", lineno)
     
     def _should_track(self, name):
-        if 'quick_print' in name:
-            return False
-        return not (name.startswith('_') and name not in ('__name__', '__file__')) and name not in Config.EXCLUDED_NAMES
+        return not (name.startswith('_') and name not in ('__name__', '__file__')) and name not in _Config.EXCLUDED_NAMES
     
     def _start_tracking(self, module_name):
         if self.active: return
@@ -105,33 +103,38 @@ class _VariableTracker:
         lineno = frame.f_lineno
         quick_print(f"Stopped debugging", lineno)
 
-def _track_frame(frame, event, arg):
-    tracker = _VariableTracker._get_instance()
-    if not tracker.active or event != 'line': return _track_frame
+def track_frame(frame, event, arg):
+    tracker = _VariableTracker.get_instance()
+    if not tracker.active or event != 'line': return track_frame
+
+    # Skip tracking if function name is 'quick_print'
+    if frame.f_code.co_name == 'quick_print':
+        return track_frame
+
     scope = "Global" if frame.f_code.co_name == '<module>' else f"Local in '{frame.f_code.co_name}'"
     current_vars = {name: value for name, value in (frame.f_locals if scope != "Global" else frame.f_globals).items() if tracker._should_track(name)}
-    
+
     if scope == "Global":
         for name, value in current_vars.items():
             if name not in tracker.global_vars:
-                tracker._print_change(name, None, value, scope)
+                tracker.print_change(name, None, value, scope)
             elif tracker.global_vars[name] != value:
-                tracker._print_change(name, tracker.global_vars[name], value, scope)
+                tracker.print_change(name, tracker.global_vars[name], value, scope)
         tracker.global_vars.update(current_vars)
     else:
         frame_id = id(frame)
         if frame_id not in tracker.frame_locals:
             for name, value in current_vars.items():
-                tracker._print_change(name, None, value, scope)
+                tracker.print_change(name, None, value, scope)
         else:
             for name, value in current_vars.items():
                 if name not in tracker.frame_locals[frame_id]:
-                    tracker._print_change(name, None, value, scope)
+                    tracker.print_change(name, None, value, scope)
                 elif tracker.frame_locals[frame_id][name] != value:
-                    tracker._print_change(name, tracker.frame_locals[frame_id][name], value, scope)
+                    tracker.print_change(name, tracker.frame_locals[frame_id][name], value, scope)
         tracker.frame_locals[frame_id] = current_vars
     if event == 'return' and scope != "Global": del tracker.frame_locals[id(frame)]
-    return _track_frame
+    return track_frame
 
 def debug():
     global debug_mode
