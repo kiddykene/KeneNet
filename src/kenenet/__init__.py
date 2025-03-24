@@ -87,7 +87,7 @@ class _VariableTracker:
         self.global_vars = {name: value for name, value in module.__dict__.items() if self._should_track(name)}
         sys.settrace(_track_frame)
         self.active = True
-        frame = inspect.currentframe()
+        frame = inspect.currentframe().f_back.f_back
         lineno = frame.f_lineno
         quick_print(f"Started debugging", lineno)
     
@@ -97,7 +97,7 @@ class _VariableTracker:
         self.frame_locals.clear()
         self.global_vars.clear()
         self.active = False
-        frame = inspect.currentframe()
+        frame = inspect.currentframe().f_back.f_back.f_back
         lineno = frame.f_lineno.fba
         quick_print(f"Stopped debugging", lineno)
 
