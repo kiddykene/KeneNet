@@ -97,7 +97,7 @@ class _VariableTracker:
         self.frame_locals.clear()
         self.global_vars.clear()
         self.active = False
-        frame = inspect.currentframe().f_back.f_back.f_back
+        frame = inspect.currentframe().f_back.f_back
         lineno = frame.f_lineno.fba
         quick_print(f"Stopped debugging", lineno)
 
