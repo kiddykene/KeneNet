@@ -1,10 +1,10 @@
-import inspect, sys, zhmiscellany, keyboard, mss, time, linecache, types, os, random, pyperclip, inspect, datetime, atexit
+import sys, zhmiscellany, keyboard, mss, time, os, random, pyperclip, inspect, datetime, atexit
 import numpy as np
 from PIL import Image
-global timings, ospid
 from pydub import AudioSegment
 from pydub.playback import play
-ospid = None
+global timings, ospid, debug_mode
+ospid, debug_mode = None, False
 timings = {}
 
 def quick_print(message, l=None):
@@ -143,15 +143,21 @@ def track_frame(frame, event, arg):
 # PUBLIC API
 # ==========================================================================
 
-def track_variables():
-    caller_frame = inspect.currentframe().f_back
-    module_name = caller_frame.f_globals['__name__']
-    tracker = VariableTracker.get_instance()
-    tracker.start_tracking(module_name)
-    caller_frame.f_trace = track_frame
+def debug():
+    global debug_mode
+    if not debug_mode:
+        caller_frame = inspect.currentframe().f_back
+        module_name = caller_frame.f_globals['__name__']
+        tracker = VariableTracker.get_instance()
+        tracker.start_tracking(module_name)
+        caller_frame.f_trace = track_frame
+        debug_mode = True
+    if debug_mode:
+        VariableTracker.get_instance().stop_tracking()
+        debug_mode = False
 
 
-def stop_tracking():
+def stop_debug():
     VariableTracker.get_instance().stop_tracking()
 
 def pp(msg='caca', subdir=None, pps=3):
