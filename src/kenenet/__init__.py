@@ -146,15 +146,15 @@ def track_frame(frame, event, arg):
 def debug():
     global debug_mode
     if not debug_mode:
+        debug_mode = True
         caller_frame = inspect.currentframe().f_back
         module_name = caller_frame.f_globals['__name__']
         tracker = VariableTracker.get_instance()
         tracker.start_tracking(module_name)
         caller_frame.f_trace = track_frame
-        debug_mode = True
     if debug_mode:
-        VariableTracker.get_instance().stop_tracking()
         debug_mode = False
+        VariableTracker.get_instance().stop_tracking()
 
 
 def stop_debug():
