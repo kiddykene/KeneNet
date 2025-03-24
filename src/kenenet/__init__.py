@@ -76,8 +76,9 @@ class _VariableTracker:
             return f"<{type(value).__name__} object>"
     
     def _print_change(self, name, old, new, scope="Global"):
-        timestamp = f"[{datetime.datetime.now().strftime('%H:%M:%S.%f')[:-3]}] " if _Config.SHOW_TIMESTAMPS else ""
-        print(f"{timestamp}{scope} '{name}' changed from {self._format_value(old)} to {self._format_value(new)}")
+        frame = inspect.currentframe().f_back
+        lineno = frame.f_lineno
+        quick_print(f"{scope} '{name}' changed from {self._format_value(old)} -> {self._format_value(new)}", lineno)
     
     def _should_track(self, name):
         return not (name.startswith('_') and name not in ('__name__', '__file__')) and name not in _Config.EXCLUDED_NAMES
@@ -88,7 +89,9 @@ class _VariableTracker:
         self.global_vars = {name: value for name, value in module.__dict__.items() if self._should_track(name)}
         sys.settrace(_track_frame)
         self.active = True
-        print(f"Variable tracking started at {datetime.datetime.now().strftime('%H:%M:%S.%f')[:-3]}")
+        frame = inspect.currentframe().f_back
+        lineno = frame.f_lineno
+        quick_print(f"Started debugging", lineno)
     
     def _stop_tracking(self):
         if not self.active: return
@@ -96,7 +99,9 @@ class _VariableTracker:
         self.frame_locals.clear()
         self.global_vars.clear()
         self.active = False
-        print(f"Variable tracking stopped at {datetime.datetime.now().strftime('%H:%M:%S.%f')[:-3]}")
+        frame = inspect.currentframe().f_back
+        lineno = frame.f_lineno
+        quick_print(f"Stopped debugging", lineno)
 
 def _track_frame(frame, event, arg):
     tracker = _VariableTracker._get_instance()
