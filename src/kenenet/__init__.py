@@ -51,96 +51,108 @@ def timer(clock=1):
 
 class Config:
     EXCLUDED_NAMES = {'Config', 'VariableTracker', 'track_variables', 'stop_tracking',
-                      'track_frame', 'sys', 'inspect', 'datetime', '__class__',
-                      'self', 'cls', 'args', 'kwargs'}
-    IGNORED_VARS = {'weakcontainer', 'w', 'e', 't', 'b', 's', 'pop', 'd', 'items'}
+                      'track_frame', 'sys', 'inspect', 'types', 'datetime',
+                      'self', 'cls', 'args', 'kwargs', '__class__'}
     EXCLUDED_FILES = {'<string>', '<frozen importlib', 'importlib', 'abc.py', 'typing.py', '_collections_abc.py'}
     SHOW_TIMESTAMPS = True
     EXCLUDE_INTERNALS = True
 
+
+# ==========================================================================
+# CORE TRACKING FUNCTIONALITY
+# ==========================================================================
+
 class VariableTracker:
     _instance = None
+    
     @classmethod
     def get_instance(cls):
-        if cls._instance is None: cls._instance = VariableTracker()
+        if cls._instance is None:
+            cls._instance = VariableTracker()
         return cls._instance
+    
     def __init__(self):
         self.active = False
-        self.tracked_module = None
         self.frame_locals = {}
         self.global_vars = {}
-    def fmt(self, v):
-        try: return repr(v)
-        except: return f"<{type(v).__name__} object>"
+    
+    def format_value(self, value):
+        try:
+            return repr(value)
+        except:
+            return f"<{type(value).__name__} object>"
+    
     def print_change(self, name, old, new, scope="Global"):
-        ts = f"[{datetime.datetime.now().strftime('%H:%M:%S.%f')[:-3]}] " if Config.SHOW_TIMESTAMPS else ""
-        print(f"{ts}{scope} '{name}' changed from {self.fmt(old)} to {self.fmt(new)}")
-    def _should_track_name(self, n):
-        return n not in Config.EXCLUDED_NAMES and n not in Config.IGNORED_VARS and not (n.startswith('_') and n not in ('__name__','__file__'))
-    def _should_track_frame(self, f):
-        if not Config.EXCLUDE_INTERNALS:
-            return True
-        fn, func = f.f_code.co_filename, f.f_code.co_name
-        if any(e in fn for e in Config.EXCLUDED_FILES) or func in {
-            'tracked_setattr', 'fmt', 'print_change', 'track_globals', 'get_instance',
-            '_maintain_shutdown_locks', '_shutdown', '_stop', '<listcomp>',
-            '__init__', '__enter__', '__exit__', '_commit_removals', '_python_exit'
-        }:
-            return False
-        return True
-    def start_tracking(self, mod_name):
+        timestamp = f"[{datetime.datetime.now().strftime('%H:%M:%S.%f')[:-3]}] " if Config.SHOW_TIMESTAMPS else ""
+        print(f"{timestamp}{scope} '{name}' changed from {self.format_value(old)} to {self.format_value(new)}")
+    
+    def _should_track(self, name):
+        return not (name.startswith('_') and name not in ('__name__', '__file__')) and name not in Config.EXCLUDED_NAMES
+    
+    def start_tracking(self, module_name):
         if self.active: return
-        self.tracked_module = sys.modules[mod_name]
-        self.global_vars = {n: v for n, v in self.tracked_module.__dict__.items() if self._should_track_name(n)}
+        module = sys.modules[module_name]
+        self.global_vars = {name: value for name, value in module.__dict__.items() if self._should_track(name)}
         sys.settrace(track_frame)
         self.active = True
         print(f"Variable tracking started at {datetime.datetime.now().strftime('%H:%M:%S.%f')[:-3]}")
+    
     def stop_tracking(self):
         if not self.active: return
         sys.settrace(None)
-        self.frame_locals.clear(); self.global_vars.clear(); self.active = False
+        self.frame_locals.clear()
+        self.global_vars.clear()
+        self.active = False
         print(f"Variable tracking stopped at {datetime.datetime.now().strftime('%H:%M:%S.%f')[:-3]}")
+
+
+# ==========================================================================
+# TRACE FUNCTION
+# ==========================================================================
 
 def track_frame(frame, event, arg):
     tracker = VariableTracker.get_instance()
-    if not tracker.active or not tracker._should_track_frame(frame):
-        return track_frame
-    if event != 'line':
-        return track_frame
-    fid, is_mod = id(frame), frame.f_code.co_name == '<module>'
-    scope = "Global" if is_mod else f"Local in '{frame.f_code.co_name}'"
-    curr = {n: v for n, v in frame.f_locals.items() if tracker._should_track_name(n)}
-    if is_mod:
-        for n, v in curr.items():
-            if n not in tracker.global_vars:
-                tracker.print_change(n, None, v, scope); tracker.global_vars[n] = v
-            elif tracker.global_vars[n] != v:
-                tracker.print_change(n, tracker.global_vars[n], v, scope); tracker.global_vars[n] = v
+    if not tracker.active or event != 'line': return track_frame
+    scope = "Global" if frame.f_code.co_name == '<module>' else f"Local in '{frame.f_code.co_name}'"
+    current_vars = {name: value for name, value in (frame.f_locals if scope != "Global" else frame.f_globals).items() if tracker._should_track(name)}
+    
+    if scope == "Global":
+        for name, value in current_vars.items():
+            if name not in tracker.global_vars:
+                tracker.print_change(name, None, value, scope)
+            elif tracker.global_vars[name] != value:
+                tracker.print_change(name, tracker.global_vars[name], value, scope)
+        tracker.global_vars.update(current_vars)
     else:
-        if fid in tracker.frame_locals:
-            for n, v in curr.items():
-                if n not in tracker.frame_locals[fid]:
-                    tracker.print_change(n, None, v, scope)
-                elif tracker.frame_locals[fid][n] != v:
-                    tracker.print_change(n, tracker.frame_locals[fid][n], v, scope)
+        frame_id = id(frame)
+        if frame_id not in tracker.frame_locals:
+            for name, value in current_vars.items():
+                tracker.print_change(name, None, value, scope)
         else:
-            for n, v in curr.items():
-                tracker.print_change(n, None, v, scope)
-        tracker.frame_locals[fid] = curr.copy()
-    if event == 'return' and not is_mod and fid in tracker.frame_locals:
-        del tracker.frame_locals[fid]
+            for name, value in current_vars.items():
+                if name not in tracker.frame_locals[frame_id]:
+                    tracker.print_change(name, None, value, scope)
+                elif tracker.frame_locals[frame_id][name] != value:
+                    tracker.print_change(name, tracker.frame_locals[frame_id][name], value, scope)
+        tracker.frame_locals[frame_id] = current_vars
+    if event == 'return' and scope != "Global": del tracker.frame_locals[id(frame)]
     return track_frame
 
+
+# ==========================================================================
+# PUBLIC API
+# ==========================================================================
+
 def track_variables():
-    cf = inspect.currentframe().f_back
-    mod = cf.f_globals['__name__']
-    VariableTracker.get_instance().start_tracking(mod)
-    cf.f_trace = track_frame
-    atexit.register(stop_tracking)
+    caller_frame = inspect.currentframe().f_back
+    module_name = caller_frame.f_globals['__name__']
+    tracker = VariableTracker.get_instance()
+    tracker.start_tracking(module_name)
+    caller_frame.f_trace = track_frame
+
 
 def stop_tracking():
     VariableTracker.get_instance().stop_tracking()
-
 
 def pp(msg='caca', subdir=None, pps=3):
     import os, subprocess
