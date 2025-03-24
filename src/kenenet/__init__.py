@@ -49,7 +49,7 @@ def timer(clock=1):
 
 class _Config:
     EXCLUDED_NAMES = {'Config', 'VariableTracker', 'track_variables', 'stop_tracking',
-                      'track_frame', 'sys', 'inspect', 'types', 'datetime', 'quick_print',
+                      'track_frame', 'sys', 'inspect', 'types', 'datetime',
                       'self', 'cls', 'args', 'kwargs', '__class__'}
     EXCLUDED_FILES = {'<string>', '<frozen importlib', 'importlib', 'abc.py', 'typing.py', '_collections_abc.py'}
     SHOW_TIMESTAMPS = True
@@ -81,7 +81,9 @@ class _VariableTracker:
         quick_print(f"{scope} '{name}' changed from {self._format_value(old)} -> {self._format_value(new)}", lineno)
     
     def _should_track(self, name):
-        return not (name.startswith('_') and name not in ('__name__', '__file__')) and name not in _Config.EXCLUDED_NAMES
+        if 'quick_print' in name:
+            return False
+        return not (name.startswith('_') and name not in ('__name__', '__file__')) and name not in Config.EXCLUDED_NAMES
     
     def _start_tracking(self, module_name):
         if self.active: return
