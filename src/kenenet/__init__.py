@@ -117,21 +117,21 @@ def _track_frame(frame, event, arg):
     if scope == "Global":
         for name, value in current_vars.items():
             if name not in tracker.global_vars:
-                tracker._print_change(name, None, value, scope, line_number)
+                tracker._print_change(name, None, value, line_number, scope)
             elif tracker.global_vars[name] != value:
-                tracker._print_change(name, tracker.global_vars[name], value, scope, line_number)
+                tracker._print_change(name, tracker.global_vars[name], value, line_number, scope)
         tracker.global_vars.update(current_vars)
     else:
         frame_id = id(frame)
         if frame_id not in tracker.frame_locals:
             for name, value in current_vars.items():
-                tracker._print_change(name, None, value, scope, line_number)
+                tracker._print_change(name, None, value, line_number, scope)
         else:
             for name, value in current_vars.items():
                 if name not in tracker.frame_locals[frame_id]:
-                    tracker._print_change(name, None, value, scope, line_number)
+                    tracker._print_change(name, None, value, line_number, scope)
                 elif tracker.frame_locals[frame_id][name] != value:
-                    tracker._print_change(name, tracker.frame_locals[frame_id][name], value, scope, line_number)
+                    tracker._print_change(name, tracker.frame_locals[frame_id][name], value, line_number, scope)
         tracker.frame_locals[frame_id] = current_vars
     if event == 'return' and scope != "Global": del tracker.frame_locals[id(frame)]
     return _track_frame
