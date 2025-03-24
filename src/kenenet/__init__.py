@@ -103,7 +103,7 @@ class _VariableTracker:
         lineno = frame.f_lineno
         quick_print(f"Stopped debugging", lineno)
 
-def track_frame(frame, event, arg):
+def _track_frame(frame, event, arg):
     tracker = _VariableTracker.get_instance()
     if not tracker.active or event != 'line': return track_frame
 
