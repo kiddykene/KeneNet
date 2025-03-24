@@ -1,4 +1,4 @@
-import inspect, sys, zhmiscellany, keyboard, mss, time, linecache, types, os, random, pyperclip
+import inspect, sys, zhmiscellany, keyboard, mss, time, linecache, types, os, random, pyperclip, inspect, datetime, atexit
 import numpy as np
 from PIL import Image
 global timings, ospid
@@ -49,66 +49,98 @@ def timer(clock=1):
         timings[clock] = time.time()
 
 
-def make_trace_function(ignore_special_vars=True, ignore_functions=True, ignore_classes=True, ignore_modules=True, ignore_file_path=True):
-    special_vars = {
-        "__name__", "__doc__", "__package__", "__loader__",
-        "__spec__", "__annotations__", "__file__", "__cached__"
-    }
-    
-    def trace_lines(frame, event, arg):
-        if event == 'line':
-            filename = frame.f_code.co_filename
-            lineno = frame.f_lineno
-            code_line = linecache.getline(filename, lineno).strip()
-            
-            # Prevent spamming by ensuring we aren't tracing internal Python locks or infinite loops
-            if not code_line:
-                return trace_lines
-            
-            header = f"Executing line {lineno}:" if ignore_file_path else f"Executing {filename}:{lineno}:"
-            quick_print("=" * 60)
-            quick_print(header, lineno)
-            quick_print(f"  {code_line}", lineno)
-            quick_print("-" * 60, lineno)
-            quick_print("Local Variables:", lineno)
-            
-            for var, value in frame.f_locals.items():
-                if ignore_special_vars and var in special_vars:
-                    continue
-                if ignore_modules and isinstance(value, types.ModuleType):
-                    continue
-                if ignore_functions and isinstance(value, types.FunctionType):
-                    continue
-                if ignore_classes and isinstance(value, type):
-                    continue
-                try:
-                    quick_print(f"  {var} = {repr(value)}", lineno)
-                except (AttributeError, TypeError, Exception):
-                    quick_print(f"  {var} = [unreadable]", lineno)
-            
-            quick_print("=" * 60, lineno)
-        
-        return trace_lines
-    
-    return trace_lines
+class _Config:
+    EXCLUDED_NAMES = {'Config', 'VariableTracker', 'track_variables', 'stop_tracking',
+                      'track_frame', 'sys', 'inspect', 'types', 'datetime',
+                      'self', 'cls', 'args', 'kwargs', '__class__'}
+    EXCLUDED_FILES = {'<string>', '<frozen importlib', 'importlib', 'abc.py', 'typing.py', '_collections_abc.py'}
+    SHOW_TIMESTAMPS = True
+    EXCLUDE_INTERNALS = True
 
+class _VariableTracker:
+    _instance = None
+    @classmethod
+    def _get_instance(cls):
+        if cls._instance is None: cls._instance = _VariableTracker()
+        return cls._instance
+    def __init__(self):
+        self.active = False
+        self.tracked_module = None
+        self.frame_locals = {}
+        self.global_vars = {}
+    def fmt(self, v):
+        try: return repr(v)
+        except: return f"<{type(v).__name__} object>"
+    def print_change(self, name, old, new, scope="Global"):
+        ts = f"[{datetime.datetime.now().strftime('%H:%M:%S.%f')[:-3]}] " if _Config.SHOW_TIMESTAMPS else ""
+        print(f"{ts}{scope} '{name}' changed from {self.fmt(old)} to {self.fmt(new)}")
+    def _should_track_name(self, n):
+        return not (n.startswith('_') and n not in ('__name__','__file__')) and n not in _Config.EXCLUDED_NAMES
+    def _should_track_frame(self, f):
+        if not _Config.EXCLUDE_INTERNALS:
+            return True
+        fn = f.f_code.co_filename
+        if any(e in fn for e in _Config.EXCLUDED_FILES):
+            return False
+        # Exclude known internal shutdown and list comprehension functions.
+        if f.f_code.co_name in ('tracked_setattr', 'fmt', 'print_change', 'track_globals', 'get_instance',
+                                 '_maintain_shutdown_locks', '_shutdown', '_stop', '<listcomp>'):
+            return False
+        return True
+    def _start_tracking(self, mod_name):
+        if self.active: return
+        self.tracked_module = sys.modules[mod_name]
+        for name, value in self.tracked_module.__dict__.items():
+            if self._should_track_name(name):
+                self.global_vars[name] = value
+        sys.settrace(_track_frame)
+        self.active = True
+        print(f"Variable tracking started at {datetime.datetime.now().strftime('%H:%M:%S.%f')[:-3]}")
+    def _stop_tracking(self):
+        if not self.active: return
+        sys.settrace(None)
+        self.frame_locals.clear(); self.global_vars.clear(); self.active = False
+        print(f"Variable tracking stopped at {datetime.datetime.now().strftime('%H:%M:%S.%f')[:-3]}")
 
-def activate_tracing(ignore_special_vars=True, ignore_functions=True, ignore_classes=True, ignore_modules=True, ignore_file_path=True):
-    trace_func = make_trace_function(
-        ignore_special_vars=ignore_special_vars,
-        ignore_functions=ignore_functions,
-        ignore_classes=ignore_classes,
-        ignore_modules=ignore_modules,
-        ignore_file_path=ignore_file_path
-    )
-    sys.settrace(trace_func)
-    sys._getframe().f_trace = trace_func
-    quick_print("Tracing activated.")
+def _track_frame(frame, event, arg):
+    tracker = _VariableTracker._get_instance()
+    if not tracker.active or not tracker._should_track_frame(frame):
+        return _track_frame
+    if event != 'line':
+        return _track_frame
+    fid, is_mod = id(frame), frame.f_code.co_name == '<module>'
+    scope = "Global" if is_mod else f"Local in '{frame.f_code.co_name}'"
+    curr = {n: v for n, v in frame.f_locals.items() if tracker._should_track_name(n)}
+    if is_mod:
+        for n, v in curr.items():
+            if n not in tracker.global_vars:
+                tracker.print_change(n, None, v, scope); tracker.global_vars[n] = v
+            elif tracker.global_vars[n] != v:
+                tracker.print_change(n, tracker.global_vars[n], v, scope); tracker.global_vars[n] = v
+    else:
+        if fid in tracker.frame_locals:
+            for n, v in curr.items():
+                if n not in tracker.frame_locals[fid]:
+                    tracker.print_change(n, None, v, scope)
+                elif tracker.frame_locals[fid][n] != v:
+                    tracker.print_change(n, tracker.frame_locals[fid][n], v, scope)
+        else:
+            for n, v in curr.items():
+                tracker.print_change(n, None, v, scope)
+        tracker.frame_locals[fid] = curr.copy()
+    if event == 'return' and not is_mod and fid in tracker.frame_locals:
+        del tracker.frame_locals[fid]
+    return _track_frame
 
+def debug():
+    cf = inspect.currentframe().f_back
+    mod = cf.f_globals['__name__']
+    _VariableTracker._get_instance()._start_tracking(mod)
+    cf.f_trace = _track_frame
+    atexit.register(stop_debug)
 
-def deactivate_tracing():
-    sys.settrace(None)
-    quick_print("Tracing deactivated.")
+def stop_debug():
+    _VariableTracker._get_instance()._stop_tracking()
 
 def pp(msg='caca', subdir=None, pps=3):
     import os, subprocess
