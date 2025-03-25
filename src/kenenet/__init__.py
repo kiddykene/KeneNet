@@ -3,6 +3,13 @@ import numpy as np
 from PIL import Image
 from pydub import AudioSegment
 from pydub.playback import play
+import random
+import threading
+import pyaudio
+import time
+from pydub import AudioSegment
+from zhmiscellany._processing_supportfuncs import _ray_init_thread
+import zhmiscellany.processing
 global timings, ospid, debug_mode
 ospid, debug_mode = None, False
 timings = {}
@@ -187,14 +194,73 @@ def save_img(img, name=' ', reset=True, file='temp_screenshots', mute=False):
     else:
         quick_print(f"Your img is not a fucking numpy array you twat, couldn't save {name}", lineno)
 
-def load_audio(mp3_path):
-    from zhmiscellany._processing_supportfuncs import _ray_init_thread; _ray_init_thread.join()
-    return AudioSegment.from_mp3(mp3_path)
+
+class AudioPlayer:
+    def __init__(self, file):
+        self.file = file
+        self.active_audio = {}
     
-def play_audio(file_sound, range=(0.9, 1.1)):
-    sound = file_sound
-    sound = sound._spawn(sound.raw_data, overrides={'frame_rate': int(sound.frame_rate * random.uniform(*range))})
-    zhmiscellany.processing.multiprocess_threaded(play, (sound,))
+    def _stream_audio(self, sound, stop_event, chunk=1024):
+        p = pyaudio.PyAudio()
+        stream = p.open(
+            format=p.get_format_from_width(sound.sample_width),
+            channels=sound.channels,
+            rate=sound.frame_rate,
+            output=True
+        )
+        raw_data = sound.raw_data
+        for i in range(0, len(raw_data), chunk):
+            if stop_event.is_set():
+                break
+            stream.write(raw_data[i:i + chunk])
+        
+        stream.stop_stream()
+        stream.close()
+        p.terminate()
+    
+    class _AudioLooper:
+        def __init__(self, sound, stop_event, stream_func, loop=True):
+            self.sound = sound
+            self.loop = loop
+            self.stop_event = stop_event
+            self.stream_func = stream_func
+            self.thread = threading.Thread(target=self._loop_audio, name="AudioLooperThread", daemon=True)
+            self.thread.start()
+        
+        def _loop_audio(self):
+            while not self.stop_event.is_set():
+                self.stream_func(self.sound, self.stop_event)
+                if not self.loop:
+                    break
+        
+        def stop(self):
+            self.stop_event.set()
+            self.thread.join()
+    
+    def play(self, loop=False, range=(0.9, 1.1)):
+        file_sound = AudioSegment.from_mp3(self.file)._spawn(
+            AudioSegment.from_mp3(self.file).raw_data,
+            overrides={'frame_rate': int(AudioSegment.from_mp3(self.file).frame_rate * random.uniform(*range))}
+        )
+        stop_event = threading.Event()
+        looper = self._AudioLooper(file_sound, stop_event, self._stream_audio, loop=loop)
+        self.active_audio[id(file_sound)] = looper
+    
+    def stop(self, file_sound=None):
+        if file_sound:
+            file_sound_id = id(file_sound)
+            if file_sound_id in self.active_audio:
+                self.active_audio[file_sound_id].stop()
+                del self.active_audio[file_sound_id]
+        else:
+            for looper in self.active_audio.values():
+                looper.stop()
+            self.active_audio.clear()
+
+
+def load_audio(mp3_path):
+    _ray_init_thread.join()
+    return zhmiscellany.processing.synchronous_class_multiprocess(AudioPlayer, mp3_path)
     
 class k:
     pass
