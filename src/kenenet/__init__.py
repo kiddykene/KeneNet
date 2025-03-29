@@ -257,10 +257,18 @@ class AudioPlayer:
                 looper.stop()
             self.active_audio.clear()
 
-
 def load_audio(mp3_path):
     _ray_init_thread.join()
     return zhmiscellany.processing.synchronous_class_multiprocess(AudioPlayer, mp3_path)
+
+import time
+
+def time_function(func, looped_times=10000, *args, **kwargs):
+    timer(clock=9999)
+    for _ in range(looped_times):
+        func(*args, **kwargs)
+    elasped = timer(clock=9999)
+    return elasped
     
 class k:
     pass
