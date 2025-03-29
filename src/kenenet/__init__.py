@@ -263,12 +263,13 @@ def load_audio(mp3_path):
 
 import time
 
-def time_function(func, looped_times=10000, *args, **kwargs):
+def time_func(func, looped_times=10000, *args, **kwargs):
+    func_name = getattr(func, '__name__', repr(func))
     timer(clock=9999)
     for _ in range(looped_times):
         func(*args, **kwargs)
-    elasped = timer(clock=9999)
-    return elasped
+    elapsed = timer(clock=func_name)
+    return elapsed
     
 class k:
     pass
