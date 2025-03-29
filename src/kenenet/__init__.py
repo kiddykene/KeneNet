@@ -263,12 +263,15 @@ def load_audio(mp3_path):
 
 import time
 
-def time_func(func, looped_times=10000, *args, **kwargs):
+def time_func(func, loop, *args, **kwargs):
     func_name = getattr(func, '__name__', repr(func))
-    timer(clock=9999)
-    for _ in range(looped_times):
+    frame = inspect.currentframe().f_back
+    lineno = frame.f_lineno
+    start = time.time()
+    for _ in range(loop):
         func(*args, **kwargs)
-    elapsed = timer(clock=func_name)
+    elapsed = time.time() - start
+    quick_print(f'{func_name} took {elapsed}', lineno)
     return elapsed
     
 class k:
