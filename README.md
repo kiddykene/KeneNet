@@ -1,5 +1,7 @@
 sucky
 
+shitty package that i use for making coding a quicker (and hopefully less aids) process
+
 get_pos takes the cursor position and prints the rgb when f10 is pressed
 
 timer is a timer kjhlfdshkijlsdfhkj;sdfjkhn
