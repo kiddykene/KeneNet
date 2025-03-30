@@ -271,7 +271,7 @@ def time_func(func, loop=10000, *args, **kwargs):
     for _ in range(loop):
         func(*args, **kwargs)
     elapsed = time.time() - start
-    quick_print(f'{loop}x {func_name} took {elapsed}', lineno)
+    quick_print(f'{loop:,}x {func_name} took {elapsed}', lineno)
     return elapsed
     
 class k:
