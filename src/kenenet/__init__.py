@@ -443,6 +443,17 @@ def time_code(label=None):
         _seen_lines.clear()
         _function_lines.clear()
 
+
+def time_loop(iterable, cutoff_time=0.1):
+    start_time = time.time()
+    end_time = start_time + cutoff_time
+    for item in iterable:
+        yield item
+        if time.time() > end_time:
+            break
+            
+ct = time_loop
+
 class k:
     pass
 
