@@ -281,16 +281,25 @@ def time_func(func, loop=10000, *args, **kwargs):
     return elapsed
 
 
-
 _timings = defaultdict(list)
 _block_timings = defaultdict(float)
 _current_context = None
 _line_start_time = None
 _stack = []
-_ignore_line = {'frame = inspect.currentframe().f_back', 'filename = frame.f_code.co_filename', 'if _current_context is None:', 'sys.settrace(None)', 'Function: currentframe'}
+_ignore_line = {'frame = inspect.currentframe().f_back', 'filename = frame.f_code.co_filename',
+                'if _current_context is None:', 'sys.settrace(None)', 'Function: currentframe'}
+_seen_lines = set()  # Track lines we've already processed
+_current_function = None
+_function_lines = defaultdict(set)  # Track which lines belong to which function
+
+
+def quick_print(message):
+    """Helper function for printing with consistent formatting"""
+    print(message)
+
 
 def time_code(label=None):
-    global _current_context, _timings, _line_start_time, _block_timings, _stack, _ignore_line
+    global _current_context, _timings, _line_start_time, _block_timings, _stack, _ignore_line, _seen_lines, _current_function, _function_lines
     
     # Get the frame of the caller
     frame = inspect.currentframe().f_back
@@ -303,16 +312,19 @@ def time_code(label=None):
         _line_start_time = time.time()
         _block_timings.clear()
         _stack = []
+        _seen_lines.clear()  # Reset seen lines
+        _function_lines.clear()  # Reset function lines mapping
         
         # Define the trace function
         def trace_function(frame, event, arg):
-            global _line_start_time, _stack
+            global _line_start_time, _stack, _seen_lines, _current_function, _function_lines
             
             # Track function calls and returns
             if event == 'call':
                 func_name = frame.f_code.co_name
                 if func_name != 'time_code':
                     _stack.append((func_name, time.time()))
+                    _current_function = func_name  # Track current function
                 return trace_function
             
             elif event == 'return':
@@ -320,12 +332,19 @@ def time_code(label=None):
                     func_name, start_time = _stack.pop()
                     elapsed = time.time() - start_time
                     _block_timings[f"Function: {func_name}"] += elapsed
+                    
+                    # Reset current function if we're returning from it
+                    if _current_function == func_name and _stack:
+                        _current_function = _stack[-1][0]
+                    elif not _stack:
+                        _current_function = None
                 return None
             
             elif event == 'line':
                 # Get current line information
                 lineno = frame.f_lineno
                 line_content = linecache.getline(frame.f_code.co_filename, lineno).strip()
+                line_id = f"{lineno}:{line_content}"
                 
                 # Skip empty lines or comments
                 if not line_content or line_content.startswith('#'):
@@ -340,12 +359,21 @@ def time_code(label=None):
                 current_time = time.time()
                 if _line_start_time is not None:
                     elapsed = current_time - _line_start_time
-                    _timings[_current_context].append((lineno, line_content, elapsed))
                     
-                    # Track loop timings
+                    # Track relationship between current function and lines
+                    if _current_function:
+                        _function_lines[_current_function].add(line_id)
+                    
+                    # For timing, we always record all executions to get accurate timing
+                    _timings[_current_context].append((lineno, line_content, elapsed, line_id in _seen_lines))
+                    
+                    # For loop timings, first check if it's a loop
                     if re.match(r'\s*(for|while)\s+', line_content):
                         loop_id = f"Loop at line {lineno}: {line_content[:40]}{'...' if len(line_content) > 40 else ''}"
                         _block_timings[loop_id] += elapsed
+                    
+                    # Mark this line as seen
+                    _seen_lines.add(line_id)
                 
                 # Set new start time for next line
                 _line_start_time = current_time
@@ -365,7 +393,27 @@ def time_code(label=None):
             quick_print(f"No times recorded: {context}")
             return
         
-        sorted_timings = sorted(_timings[context], key=lambda x: x[2], reverse=True)
+        # Process timings to aggregate by line but only show first occurrence
+        aggregated_timings = defaultdict(float)
+        first_occurrences = {}
+        
+        for lineno, line_content, elapsed, is_repeat in _timings[context]:
+            line_id = f"{lineno}:{line_content}"
+            aggregated_timings[line_id] += elapsed
+            
+            # Store the first occurrence information
+            if line_id not in first_occurrences:
+                first_occurrences[line_id] = (lineno, line_content, elapsed)
+        
+        # Create sorted list of first occurrences with total time
+        display_timings = [
+            (lineno, line_content, aggregated_timings[f"{lineno}:{line_content}"])
+            for lineno, line_content, _ in first_occurrences.values()
+            if line_content not in _ignore_line
+        ]
+        
+        # Sort by elapsed time (descending)
+        sorted_timings = sorted(display_timings, key=lambda x: x[2], reverse=True)
         
         quick_print(f"\nTime spent on each line: {context}")
         quick_print("-" * 80)
@@ -373,11 +421,10 @@ def time_code(label=None):
         quick_print("-" * 80)
         
         for lineno, line_content, elapsed in sorted_timings:
-            if line_content not in _ignore_line:
-                quick_print(f"{lineno:6d} | {elapsed:12.6f} | {line_content}")
+            quick_print(f"{lineno:6d} | {elapsed:12.6f} | {line_content}")
         
         quick_print("-" * 80)
-        total_time = sum(elapsed for _, _, elapsed in _timings[context])
+        total_time = sum(elapsed for _, _, elapsed in sorted_timings)
         quick_print(f"Total execution time: {total_time:.6f}")
         
         if _block_timings:
@@ -390,7 +437,7 @@ def time_code(label=None):
             sorted_blocks = sorted(_block_timings.items(), key=lambda x: x[1], reverse=True)
             
             for block, elapsed in sorted_blocks:
-                if block not in _ignore_line:
+                if not any(ignore in block for ignore in _ignore_line):
                     percentage = (elapsed / total_time) * 100 if total_time > 0 else 0
                     quick_print(f"{block[:40]:40} | {elapsed:12.6f} | {percentage:10.2f}%")
             
@@ -399,6 +446,8 @@ def time_code(label=None):
         # Clear the timing data for this context
         del _timings[context]
         _block_timings.clear()
+        _seen_lines.clear()
+        _function_lines.clear()
 
 class k:
     pass
