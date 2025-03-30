@@ -287,7 +287,7 @@ _block_timings = defaultdict(float)
 _current_context = None
 _line_start_time = None
 _stack = []
-_ignore_line = {'frame = inspect.currentframe().f_back', 'filename = frame.f_code.co_filename', 'if _current_context is None:', 'sys.settrace(None)', 'currentframe'}
+_ignore_line = {'frame = inspect.currentframe().f_back', 'filename = frame.f_code.co_filename', 'if _current_context is None:', 'sys.settrace(None)', 'Function: currentframe'}
 
 def time_code(label=None):
     global _current_context, _timings, _line_start_time, _block_timings, _stack, _ignore_line
