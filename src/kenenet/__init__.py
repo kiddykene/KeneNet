@@ -356,31 +356,31 @@ def time_code(details=True, chunks=True, label=None):
         sys.settrace(trace_function)
     
     else:
+        
+        sys.settrace(None)
+        context = _current_context
+        _current_context = None
+        _line_start_time = None
+        
+        if not _timings[context]:
+            quick_print(f"No times recorded: {context}")
+            return
+        
+        sorted_timings = sorted(_timings[context], key=lambda x: x[2], reverse=True)
         if details:
-            sys.settrace(None)
-            context = _current_context
-            _current_context = None
-            _line_start_time = None
-            
-            if not _timings[context]:
-                quick_print(f"No times recorded: {context}")
-                return
-            
-            sorted_timings = sorted(_timings[context], key=lambda x: x[2], reverse=True)
-            
             quick_print(f"\nTime spent on each line: {context}")
             quick_print("-" * 80)
             quick_print(f"{'Line':>6} | {'Time':>12} | Code")
             quick_print("-" * 80)
-            
-            for lineno, line_content, elapsed in sorted_timings:
-                if line_content not in _ignore_line:
-                    quick_print(f"{lineno:6d} | {elapsed:12.6f} | {line_content}")
-            
-            quick_print("-" * 80)
-            total_time = sum(elapsed for _, _, elapsed in _timings[context])
-            quick_print(f"Total execution time: {total_time:.6f}")
         
+        for lineno, line_content, elapsed in sorted_timings:
+            if line_content not in _ignore_line and details:
+                quick_print(f"{lineno:6d} | {elapsed:12.6f} | {line_content}")
+        
+        if details: quick_print("-" * 80)
+        total_time = sum(elapsed for _, _, elapsed in _timings[context])
+        if details: quick_print(f"Total execution time: {total_time:.6f}")
+    
         if _block_timings and chunks:
             quick_print("\nTime spent on chunks of code:")
             quick_print("-" * 80)
