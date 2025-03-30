@@ -289,9 +289,10 @@ _line_start_time = None
 _stack = []
 _ignore_line = {'frame = inspect.currentframe().f_back', 'filename = frame.f_code.co_filename', 'if _current_context is None:', 'sys.settrace(None)', 'currentframe'}
 
-def time_code(details=True, chunks=True, label=None):
+def time_code(label=None):
     global _current_context, _timings, _line_start_time, _block_timings, _stack, _ignore_line
-    
+    details = True
+    chunks = True
     # Get the frame of the caller
     frame = inspect.currentframe().f_back
     filename = frame.f_code.co_filename
