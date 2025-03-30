@@ -287,10 +287,10 @@ _block_timings = defaultdict(float)
 _current_context = None
 _line_start_time = None
 _stack = []
-
+_ignore_line = {'frame = inspect.currentframe().f_back', 'filename = frame.f_code.co_filename', 'if _current_context is None:', 'sys.settrace(None)'}
 
 def time_code(label=None):
-    global _current_context, _timings, _line_start_time, _block_timings, _stack
+    global _current_context, _timings, _line_start_time, _block_timings, _stack, _ignore_line
     
     # Get the frame of the caller
     frame = inspect.currentframe().f_back
@@ -373,7 +373,8 @@ def time_code(label=None):
         quick_print("-" * 80)
         
         for lineno, line_content, elapsed in sorted_timings:
-            quick_print(f"{lineno:6d} | {elapsed:12.6f} | {line_content}")
+            if line_content not in _ignore_line:
+                quick_print(f"{lineno:6d} | {elapsed:12.6f} | {line_content}")
         
         quick_print("-" * 80)
         total_time = sum(elapsed for _, _, elapsed in _timings[context])
