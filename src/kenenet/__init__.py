@@ -291,8 +291,7 @@ _ignore_line = {'frame = inspect.currentframe().f_back', 'filename = frame.f_cod
 
 def time_code(label=None):
     global _current_context, _timings, _line_start_time, _block_timings, _stack, _ignore_line
-    details = True
-    chunks = True
+    
     # Get the frame of the caller
     frame = inspect.currentframe().f_back
     filename = frame.f_code.co_filename
@@ -367,35 +366,34 @@ def time_code(label=None):
             return
         
         sorted_timings = sorted(_timings[context], key=lambda x: x[2], reverse=True)
-        if details:
-            quick_print(f"\nTime spent on each line: {context}")
-            quick_print("-" * 80)
-            quick_print(f"{'Line':>6} | {'Time':>12} | Code")
-            quick_print("-" * 80)
         
-            for lineno, line_content, elapsed in sorted_timings:
-                if line_content not in _ignore_line:
-                    quick_print(f"{lineno:6d} | {elapsed:12.6f} | {line_content}")
+        quick_print(f"\nTime spent on each line: {context}")
+        quick_print("-" * 80)
+        quick_print(f"{'Line':>6} | {'Time':>12} | Code")
+        quick_print("-" * 80)
         
-            quick_print("-" * 80)
+        for lineno, line_content, elapsed in sorted_timings:
+            if line_content not in _ignore_line:
+                quick_print(f"{lineno:6d} | {elapsed:12.6f} | {line_content}")
+        
+        quick_print("-" * 80)
         total_time = sum(elapsed for _, _, elapsed in _timings[context])
-        if details: quick_print(f"Total execution time: {total_time:.6f}")
+        quick_print(f"Total execution time: {total_time:.6f}")
         
         if _block_timings:
-            if chunks:
-                quick_print("\nTime spent on chunks of code:")
-                quick_print("-" * 80)
-                quick_print(f"{'Chunks':^40} | {'Time':>12} | {'% of Time Spent':>10}")
-                quick_print("-" * 80)
+            quick_print("\nTime spent on chunks of code:")
+            quick_print("-" * 80)
+            quick_print(f"{'Chunks':^40} | {'Time':>12} | {'% of Time Spent':>10}")
+            quick_print("-" * 80)
             
             # Sort block timings by time
             sorted_blocks = sorted(_block_timings.items(), key=lambda x: x[1], reverse=True)
-            if chunks:
-                for block, elapsed in sorted_blocks:
-                    percentage = (elapsed / total_time) * 100 if total_time > 0 else 0
-                    quick_print(f"{block[:40]:40} | {elapsed:12.6f} | {percentage:10.2f}%")
             
-            if chunks: quick_print("-" * 80)
+            for block, elapsed in sorted_blocks:
+                percentage = (elapsed / total_time) * 100 if total_time > 0 else 0
+                quick_print(f"{block[:40]:40} | {elapsed:12.6f} | {percentage:10.2f}%")
+            
+            quick_print("-" * 80)
         
         # Clear the timing data for this context
         del _timings[context]
