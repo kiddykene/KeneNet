@@ -289,8 +289,7 @@ _line_start_time = None
 _stack = []
 _ignore_line = {'frame = inspect.currentframe().f_back', 'filename = frame.f_code.co_filename', 'if _current_context is None:', 'sys.settrace(None)'}
 
-
-def time_code(print_details=True, print_chunks=True, label=None):
+def time_code(label=None):
     global _current_context, _timings, _line_start_time, _block_timings, _stack, _ignore_line
     
     # Get the frame of the caller
@@ -366,30 +365,22 @@ def time_code(print_details=True, print_chunks=True, label=None):
             quick_print(f"No times recorded: {context}")
             return
         
-        # Calculate total time regardless of printing options
+        sorted_timings = sorted(_timings[context], key=lambda x: x[2], reverse=True)
+        
+        quick_print(f"\nTime spent on each line: {context}")
+        quick_print("-" * 80)
+        quick_print(f"{'Line':>6} | {'Time':>12} | Code")
+        quick_print("-" * 80)
+        
+        for lineno, line_content, elapsed in sorted_timings:
+            if line_content not in _ignore_line:
+                quick_print(f"{lineno:6d} | {elapsed:12.6f} | {line_content}")
+        
+        quick_print("-" * 80)
         total_time = sum(elapsed for _, _, elapsed in _timings[context])
+        quick_print(f"Total execution time: {total_time:.6f}")
         
-        # Print detailed line-by-line timings if requested
-        if print_details:
-            sorted_timings = sorted(_timings[context], key=lambda x: x[2], reverse=True)
-            
-            quick_print(f"\nTime spent on each line: {context}")
-            quick_print("-" * 80)
-            quick_print(f"{'Line':>6} | {'Time':>12} | Code")
-            quick_print("-" * 80)
-            
-            for lineno, line_content, elapsed in sorted_timings:
-                if line_content not in _ignore_line:
-                    quick_print(f"{lineno:6d} | {elapsed:12.6f} | {line_content}")
-            
-            quick_print("-" * 80)
-            quick_print(f"Total execution time: {total_time:.6f}")
-        else:
-            # Just print the total time if detailed printing is disabled
-            quick_print(f"\nTotal execution time for {context}: {total_time:.6f}")
-        
-        # Print chunk summaries if requested
-        if print_chunks and _block_timings:
+        if _block_timings:
             quick_print("\nTime spent on chunks of code:")
             quick_print("-" * 80)
             quick_print(f"{'Chunks':^40} | {'Time':>12} | {'% of Time Spent':>10}")
