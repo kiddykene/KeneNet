@@ -48,11 +48,14 @@ def timer(clock=1):
         elapsed = time.time() - timings[clock]
         frame = inspect.currentframe().f_back
         lineno = frame.f_lineno
-        quick_print(f'Timer {clock} took \033[97m{elapsed}\033[0m seconds', lineno)
+        quick_print(f'Timer {clock[0]} took \033[97m{elapsed}\033[0m seconds', f'{lineno}-{clock[1]}')
         del timings[clock]
         return elapsed
     else:
-        timings[clock] = time.time()
+        ct = time.time()
+        frame = inspect.currentframe().f_back
+        lineno = frame.f_lineno
+        timings[clock] = (ct, lineno)
 
 class _Config:
     EXCLUDED_NAMES = {'Config', 'VariableTracker', 'track_variables', 'stop_tracking',
