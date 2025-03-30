@@ -286,16 +286,10 @@ _block_timings = defaultdict(float)
 _current_context = None
 _line_start_time = None
 _stack = []
-_ignore_line = {'frame = inspect.currentframe().f_back', 'filename = frame.f_code.co_filename',
-                'if _current_context is None:', 'sys.settrace(None)', 'Function: currentframe'}
+_ignore_line = {'frame = inspect.currentframe().f_back', 'filename = frame.f_code.co_filename', 'if _current_context is None:', 'sys.settrace(None)', 'Function: currentframe', 'return sys._getframe(1) if hasattr(sys, "_getframe") else None'}
 _seen_lines = set()  # Track lines we've already processed
 _current_function = None
 _function_lines = defaultdict(set)  # Track which lines belong to which function
-
-
-def quick_print(message):
-    """Helper function for printing with consistent formatting"""
-    print(message)
 
 
 def time_code(label=None):
