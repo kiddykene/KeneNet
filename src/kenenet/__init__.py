@@ -45,10 +45,13 @@ def get_pos(key='f10', kill=False):
 
 def timer(clock=1):
     if clock in timings:
-        elapsed = time.time() - timings[clock]
+        elapsed = time.time() - timings[clock][0]
         frame = inspect.currentframe().f_back
         lineno = frame.f_lineno
-        quick_print(f'Timer {clock[0]} took \033[97m{elapsed}\033[0m seconds', f'{lineno}-{clock[1]}')
+        if timer == 1:
+            quick_print(f'Timer took \033[97m{elapsed}\033[0m seconds', f'{lineno}-{timings[clock][1]}')
+        else:
+            quick_print(f'Timer {clock} took \033[97m{elapsed}\033[0m seconds', f'{lineno}-{timings[clock][1]}')
         del timings[clock]
         return elapsed
     else:
