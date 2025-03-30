@@ -390,8 +390,9 @@ def time_code(label=None):
             sorted_blocks = sorted(_block_timings.items(), key=lambda x: x[1], reverse=True)
             
             for block, elapsed in sorted_blocks:
-                percentage = (elapsed / total_time) * 100 if total_time > 0 else 0
-                quick_print(f"{block[:40]:40} | {elapsed:12.6f} | {percentage:10.2f}%")
+                if block not in _ignore_line:
+                    percentage = (elapsed / total_time) * 100 if total_time > 0 else 0
+                    quick_print(f"{block[:40]:40} | {elapsed:12.6f} | {percentage:10.2f}%")
             
             quick_print("-" * 80)
         
