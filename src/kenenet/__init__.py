@@ -286,10 +286,38 @@ _block_timings = defaultdict(float)
 _current_context = None
 _line_start_time = None
 _stack = []
-_ignore_line = {'frame = inspect.currentframe().f_back', 'filename = frame.f_code.co_filename', 'if _current_context is None:', 'sys.settrace(None)', 'Function: currentframe', 'return sys._getframe(1) if hasattr(sys, "_getframe") else None'}
+_ignore_line = {'frame = inspect.currentframe().f_back', 'filename = frame.f_code.co_filename', 'if _current_context is None:', 'sys.settrace(None)', 'Function: currentframe', 'return sys._getframe(1) if hasattr(sys, "_getframe") else None', ' Function: recurser', 'Function: <listcomp>', 'Function: here', 'Function: _array_repr_implementation', 'Function: wrapper', 'Function: array2string', 'Function: _array2string', 'Function: _formatArray', 'Function: _extendLine_pretty', 'Function: _extendLine', 'Function: __call__', 'Function: _var', 'Function: _std', 'Function: std', 'Function: _leading_trailing', 'Function: __init__'}
 _seen_lines = set()  # Track lines we've already processed
 _current_function = None
 _function_lines = defaultdict(set)  # Track which lines belong to which function
+_site_packages_dirs = []  # List to store site-packages directories
+
+# Initialize site-packages directories
+
+# Get site-packages directories from sys.path
+for path in sys.path:
+    if 'site-packages' in path or 'dist-packages' in path:
+        _site_packages_dirs.append(path)
+
+
+def _is_package_code(filename):
+    """Check if the given filename is from an imported package."""
+    # Skip if it's in site-packages
+    for site_dir in _site_packages_dirs:
+        if filename.startswith(site_dir):
+            return True
+    
+    # Skip if it's a built-in module
+    if '<' in filename and '>' in filename:  # Handles '<frozen importlib._bootstrap>' etc.
+        return True
+    
+    # Skip standard library modules
+    for path in sys.path:
+        if 'python' in path.lower() and os.path.isdir(path) and not path.endswith('site-packages'):
+            if filename.startswith(path):
+                return True
+    
+    return False
 
 
 def time_code(label=None):
@@ -312,6 +340,10 @@ def time_code(label=None):
         # Define the trace function
         def trace_function(frame, event, arg):
             global _line_start_time, _stack, _seen_lines, _current_function, _function_lines
+            
+            # Skip tracking for package code
+            if _is_package_code(frame.f_code.co_filename):
+                return trace_function
             
             # Track function calls and returns
             if event == 'call':
