@@ -292,7 +292,25 @@ _current_function = None
 _function_lines = defaultdict(set)  # Track which lines belong to which function
 _site_packages_dirs = []  # List to store site-packages directories
 
+# Patterns for generated code constructs to ignore
+_ignore_function_patterns = {
+    '<dictcomp>',
+    '<lambda>',
+    '<setcomp>',
+    '<listcomp>',
+    '<genexpr>',
+    '<comprehension>',
+    '<module>'
+}
+
 # Initialize site-packages directories
+import sys
+import os
+import inspect
+import time
+import re
+import linecache
+from collections import defaultdict
 
 # Get site-packages directories from sys.path
 for path in sys.path:
@@ -318,6 +336,10 @@ def _is_package_code(filename):
                 return True
     
     return False
+
+def _is_generated_construct(func_name):
+    """Check if the function name is a generated construct like <dictcomp>, <lambda>, etc."""
+    return any(pattern in func_name for pattern in _ignore_function_patterns)
 
 
 def time_code(label=None):
@@ -348,6 +370,11 @@ def time_code(label=None):
             # Track function calls and returns
             if event == 'call':
                 func_name = frame.f_code.co_name
+                
+                # Skip recording generated constructs
+                if _is_generated_construct(func_name):
+                    return trace_function
+                
                 if func_name != 'time_code':
                     _stack.append((func_name, time.time()))
                     _current_function = func_name  # Track current function
@@ -356,8 +383,11 @@ def time_code(label=None):
             elif event == 'return':
                 if _stack:
                     func_name, start_time = _stack.pop()
-                    elapsed = time.time() - start_time
-                    _block_timings[f"Function: {func_name}"] += elapsed
+                    
+                    # Skip recording generated constructs
+                    if not _is_generated_construct(func_name):
+                        elapsed = time.time() - start_time
+                        _block_timings[f"Function: {func_name}"] += elapsed
                     
                     # Reset current function if we're returning from it
                     if _current_function == func_name and _stack:
@@ -379,6 +409,10 @@ def time_code(label=None):
                 # Check if we should stop tracing
                 if "time_code" in line_content and _current_context is not None:
                     # This might be the ending call, let's continue execution
+                    return trace_function
+                
+                # Skip recording if we're in a generated construct
+                if _current_function and _is_generated_construct(_current_function):
                     return trace_function
                 
                 # Record elapsed time since last line
@@ -463,7 +497,9 @@ def time_code(label=None):
             sorted_blocks = sorted(_block_timings.items(), key=lambda x: x[1], reverse=True)
             
             for block, elapsed in sorted_blocks:
-                if not any(ignore in block for ignore in _ignore_line):
+                # Filter out generated constructs and ignored lines
+                if (not any(ignore in block for ignore in _ignore_line) and
+                        not any(pattern in block for pattern in _ignore_function_patterns)):
                     percentage = (elapsed / total_time) * 100 if total_time > 0 else 0
                     quick_print(f"{block[:40]:40} | {elapsed:12.6f} | {percentage:10.2f}%")
             
