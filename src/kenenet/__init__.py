@@ -286,7 +286,7 @@ _block_timings = defaultdict(float)
 _current_context = None
 _line_start_time = None
 _stack = []
-_ignore_line = {'frame = inspect.currentframe().f_back', 'filename = frame.f_code.co_filename', 'if _current_context is None:', 'sys.settrace(None)', 'Function: currentframe', 'return sys._getframe(1) if hasattr(sys, "_getframe") else None', ' Function: recurser', 'Function: <listcomp>', 'Function: here', 'Function: _array_repr_implementation', 'Function: wrapper', 'Function: array2string', 'Function: _array2string', 'Function: _formatArray', 'Function: _extendLine_pretty', 'Function: _extendLine', 'Function: __call__', 'Function: _var', 'Function: _std', 'Function: std', 'Function: _leading_trailing', 'Function: __init__'}
+_ignore_line = {'frame = inspect.currentframe().f_back', 'filename = frame.f_code.co_filename', 'if _current_context is None:', 'sys.settrace(None)', 'Function: currentframe', 'return sys._getframe(1) if hasattr(sys, "_getframe") else None'}
 _seen_lines = set()  # Track lines we've already processed
 _current_function = None
 _function_lines = defaultdict(set)  # Track which lines belong to which function
