@@ -40,7 +40,7 @@ def get_pos(key='f10', kill=False):
             if kill:
                 quick_print('killing process')
                 zhmiscellany.misc.die()
-    quick_print(f'Press {key} when ever you want the location')
+    quick_print(f'Press {key} when ever you want the location, automatically copies coords/rgb to clipboard')
     frame = inspect.currentframe().f_back
     lineno = frame.f_lineno
     _get_pos(key, kill)
