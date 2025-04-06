@@ -1,14 +1,9 @@
-import inspect, sys, zhmiscellany, keyboard, mss, time, linecache, types, os, random, pyperclip, inspect, datetime, atexit, re
+import sys, zhmiscellany, keyboard, mss, time, linecache, os, random, pyperclip, inspect, re
 import numpy as np
 from PIL import Image
 from collections import defaultdict
-
-from pydub import AudioSegment
-from pydub.playback import play
-import random
 import threading
 import pyaudio
-import time
 from pydub import AudioSegment
 from zhmiscellany._processing_supportfuncs import _ray_init_thread
 import zhmiscellany.processing
@@ -303,14 +298,6 @@ _ignore_function_patterns = {
     '<module>'
 }
 
-# Initialize site-packages directories
-import sys
-import os
-import inspect
-import time
-import re
-import linecache
-from collections import defaultdict
 
 # Get site-packages directories from sys.path
 for path in sys.path:
