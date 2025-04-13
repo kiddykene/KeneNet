@@ -31,7 +31,7 @@ def get_pos(key='f10', kill=False):
             coord_rgb.append({'coord': (x,y), 'RGB': rgb})
             coords.append((x,y))
             pyperclip.copy(f'coords_rgb = {coord_rgb}\ncoords = {coords}')
-            quick_print(f"Added Coordinates: ({str(x).rjust(4)}, {str(y).rjust(4)}), RGB: {str(rgb).ljust(18)} {color}████████{reset} to clipboard", lineno)
+            quick_print(f"Added Coordinates: ({str(x).rjust(3)},{str(y).rjust(3)}), RGB: {str(rgb).ljust(15)} {color}████████{reset} to clipboard", lineno)
             if kill:
                 quick_print('killing process')
                 zhmiscellany.misc.die()
@@ -198,71 +198,115 @@ def save_img(img, name=' ', reset=True, file='temp_screenshots', mute=False):
         quick_print(f"Your img is not a fucking numpy array you twat, couldn't save {name}", lineno)
 
 
-class AudioPlayer:
-    def __init__(self, file):
-        self.file = file
-        self.active_audio = {}
-    
-    def _stream_audio(self, sound, stop_event, chunk=1024):
-        p = pyaudio.PyAudio()
-        stream = p.open(
-            format=p.get_format_from_width(sound.sample_width),
-            channels=sound.channels,
-            rate=sound.frame_rate,
-            output=True
-        )
-        raw_data = sound.raw_data
-        for i in range(0, len(raw_data), chunk):
-            if stop_event.is_set():
-                break
-            stream.write(raw_data[i:i + chunk])
-        
-        stream.stop_stream()
-        stream.close()
-        p.terminate()
-    
-    class _AudioLooper:
-        def __init__(self, sound, stop_event, stream_func, loop=True):
-            self.sound = sound
-            self.loop = loop
-            self.stop_event = stop_event
-            self.stream_func = stream_func
-            self.thread = threading.Thread(target=self._loop_audio, name="AudioLooperThread", daemon=True)
-            self.thread.start()
-        
-        def _loop_audio(self):
-            while not self.stop_event.is_set():
-                self.stream_func(self.sound, self.stop_event)
-                if not self.loop:
-                    break
-        
-        def stop(self):
-            self.stop_event.set()
-            self.thread.join()
-    
-    def play(self, loop=False, range=(0.9, 1.1)):
-        file_sound = AudioSegment.from_mp3(self.file)._spawn(
-            AudioSegment.from_mp3(self.file).raw_data,
-            overrides={'frame_rate': int(AudioSegment.from_mp3(self.file).frame_rate * random.uniform(*range))}
-        )
-        stop_event = threading.Event()
-        looper = self._AudioLooper(file_sound, stop_event, self._stream_audio, loop=loop)
-        self.active_audio[id(file_sound)] = looper
-    
-    def stop(self, file_sound=None):
-        if file_sound:
-            file_sound_id = id(file_sound)
-            if file_sound_id in self.active_audio:
-                self.active_audio[file_sound_id].stop()
-                del self.active_audio[file_sound_id]
-        else:
-            for looper in self.active_audio.values():
-                looper.stop()
-            self.active_audio.clear()
+import random
+import threading
+import math
+import pygame
+from pydub import AudioSegment
+import io
+import time
+import zhmiscellany
 
-def load_audio(mp3_path):
-    _ray_init_thread.join()
-    return zhmiscellany.processing.synchronous_class_multiprocess(AudioPlayer, mp3_path)
+
+def sound_engine(sandbox_pygame=True):
+    class SoundEngine:
+        def __init__(self):
+            pygame.mixer.init()
+            self.handles = []
+            self.cached_audios = {}
+        
+        def change_speed(self, sound, speed=1.0):
+            new_frame_rate = int(sound.frame_rate * speed)
+            new_sound = sound._spawn(sound.raw_data, overrides={"frame_rate": new_frame_rate})
+            # Resample back to the original frame rate for compatibility
+            return new_sound.set_frame_rate(sound.frame_rate)
+        
+        class SoundHandle:
+            def __init__(self, thread, stop_event, sound_channel=None):
+                self.thread = thread
+                self.stop_event = stop_event
+                self.sound_channel = sound_channel
+            
+            def stop(self):
+                self.stop_event.set()
+                if self.sound_channel is not None:
+                    self.sound_channel.stop()
+                if hasattr(self.thread, 'kill'):
+                    self.thread.kill()
+                self.thread.join(timeout=1.0)
+        
+        def play(self, file_path, volume=1.0, speed=1, loop=False):
+            # Handle random speed selection
+            if isinstance(speed, tuple):
+                speed = random.uniform(speed[0], speed[1])
+            
+            # Load or use cached audio
+            if file_path not in self.cached_audios:
+                sound = AudioSegment.from_file(file_path)
+                self.cached_audios[file_path] = sound
+            else:
+                sound = self.cached_audios[file_path]
+            
+            # Adjust volume: pydub uses decibels.
+            # To convert a multiplier to dB change, use: gain = 20 * log10(volume)
+            if volume <= 0:
+                gain = -120
+            else:
+                gain = 20 * math.log10(volume)
+            sound = sound.apply_gain(gain)
+            
+            # Apply speed change if needed
+            if speed != 1.0:
+                sound = self.change_speed(sound, speed)
+            
+            # Convert to in-memory file object that pygame can read
+            buffer = io.BytesIO()
+            sound.export(buffer, format="wav")
+            buffer.seek(0)
+            
+            # Create a pygame Sound object
+            pygame_sound = pygame.mixer.Sound(buffer)
+            
+            # Set volume (pygame uses 0.0 to 1.0)
+            pygame_sound.set_volume(min(1.0, max(0.0, volume)))
+            
+            stop_event = threading.Event()
+            channel = None
+            
+            def play_sound():
+                nonlocal channel
+                try:
+                    # Find an available channel
+                    channel = pygame.mixer.find_channel()
+                    if channel is None:
+                        # If no channel is available, create a new one
+                        current_channels = pygame.mixer.get_num_channels()
+                        pygame.mixer.set_num_channels(current_channels + 1)
+                        channel = pygame.mixer.Channel(current_channels)
+                    
+                    # Start playing
+                    channel.play(pygame_sound, loops=-1 if loop else 0)
+                    
+                    # Wait until sound is done or stopped
+                    while channel.get_busy() and not stop_event.is_set():
+                        time.sleep(0.1)
+                except Exception as e:
+                    print(f"Error playing sound: {e}")
+                    if channel:
+                        channel.stop()
+            
+            # Start playback in a separate thread so it's nonblocking
+            thread = threading.Thread(target=play_sound, daemon=True)
+            thread.start()
+            
+            handle = self.SoundHandle(thread, stop_event, channel)
+            self.handles.append(handle)
+            return handle
+    
+    if sandbox_pygame:
+        return zhmiscellany.processing.synchronous_class_multiprocess(sound_engine)
+    else:
+        return sound_engine()
 
 def time_func(func, loop=10000, *args, **kwargs):
     func_name = getattr(func, '__name__', repr(func))
