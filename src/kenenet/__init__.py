@@ -208,7 +208,7 @@ import time
 import zhmiscellany
 
 
-class load_audio:
+class _load_audio:
     def __init__(self):
         pygame.mixer.init()
         self.handles = []
@@ -301,6 +301,8 @@ class load_audio:
         handle = self.SoundHandle(thread, stop_event, channel)
         self.handles.append(handle)
         return handle
+    
+play_audio = _load_audio()
 
 def time_func(func, loop=10000, *args, **kwargs):
     func_name = getattr(func, '__name__', repr(func))
