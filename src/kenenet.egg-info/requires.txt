@@ -1,6 +1,0 @@
-zhmiscellany
-mss
-pillow
-pydub
-pyperclip
-pydub
