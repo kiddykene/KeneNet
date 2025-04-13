@@ -304,9 +304,9 @@ def sound_engine(sandbox_pygame=True):
             return handle
     
     if sandbox_pygame:
-        return zhmiscellany.processing.synchronous_class_multiprocess(sound_engine)
+        return zhmiscellany.processing.synchronous_class_multiprocess(SoundEngine)
     else:
-        return sound_engine()
+        return SoundEngine()
 
 def time_func(func, loop=10000, *args, **kwargs):
     func_name = getattr(func, '__name__', repr(func))
