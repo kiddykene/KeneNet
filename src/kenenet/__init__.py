@@ -7,6 +7,10 @@ import pyaudio
 from pydub import AudioSegment
 from zhmiscellany._processing_supportfuncs import _ray_init_thread
 import zhmiscellany.processing
+import math
+import pygame
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
+import io
 global timings, ospid, debug_mode
 ospid, debug_mode = None, False
 timings = {}
@@ -198,14 +202,6 @@ def save_img(img, name=' ', reset=True, file='temp_screenshots', mute=False):
         quick_print(f"Your img is not a fucking numpy array you twat, couldn't save {name}", lineno)
 
 
-import random
-import threading
-import math
-import pygame
-from pydub import AudioSegment
-import io
-import time
-import zhmiscellany
 
 
 class _load_audio:
