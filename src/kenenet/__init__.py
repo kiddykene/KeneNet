@@ -183,7 +183,7 @@ def pp(msg='caca', subdir=None, pps=3):
 
 def save_img(img, name=' ', reset=True, file='temp_screenshots', mute=False):
     global ospid
-    # Ensure directory exists or clean if needed
+    # Ensure target directory exists or is cleaned once
     if os.path.exists(file):
         if reset and ospid is None:
             zhmiscellany.fileio.empty_directory(file)
@@ -191,8 +191,9 @@ def save_img(img, name=' ', reset=True, file='temp_screenshots', mute=False):
     else:
         quick_print(f'New folder created {file}')
         zhmiscellany.fileio.create_folder(file)
-
     ospid = True
+
+    # Determine caller line number for logging
     frame = inspect.currentframe().f_back
     lineno = frame.f_lineno
 
@@ -200,23 +201,23 @@ def save_img(img, name=' ', reset=True, file='temp_screenshots', mute=False):
         # Detect mask arrays: floating-point, single-channel
         is_mask = img.dtype.kind == 'f' and (img.ndim == 2 or (img.ndim == 3 and img.shape[-1] == 1))
 
-        # Construct timestamped, sanitized filename
-        timestamp = time.time()
-        # Sanitize the provided name to remove invalid filesystem chars
-        safe_name = re.sub(r'[^A-Za-z0-9._-]', '_', name)
-        save_name = f"{safe_name}{timestamp}"
+        # Sanitize name to avoid invalid filename characters
+        raw_name = str(name).strip()
+        safe_name = re.sub(r'[^A-Za-z0-9_-]+', '_', raw_name)
+        timestamp = f'{time.time():.6f}'  # more compact timestamp
+        save_name = f"{safe_name}_{timestamp}"
 
-        # Prepare image to save
+        # Prepare image for saving
         if is_mask:
-            # Scale mask [0.0,1.0] to [0,255] grayscale
+            # Scale mask values [0.0,1.0] to [0,255] grayscale
             mask_uint8 = (img.squeeze() * 255).clip(0, 255).astype(np.uint8)
             img_to_save = Image.fromarray(mask_uint8)
         else:
             img_to_save = Image.fromarray(img)
 
-        # Save file
-        save_path = os.path.join(file, f"{save_name}.png")
-        img_to_save.save(save_path)
+        # Save to disk
+        filepath = os.path.join(file, f"{save_name}.png")
+        img_to_save.save(filepath)
 
         if not mute:
             quick_print(f'Saved image as {save_name}', lineno)
