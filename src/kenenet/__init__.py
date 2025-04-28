@@ -193,16 +193,27 @@ def save_img(img, name=' ', reset=True, file='temp_screenshots', mute=False):
     ospid = True
     frame = inspect.currentframe().f_back
     lineno = frame.f_lineno
-    if isinstance(img, np.ndarray):
-        save_name = name + f'{time.time()}'
-        img = Image.fromarray(img)
-        img.save(fr'{file}\{save_name}.png')
-        if not mute: quick_print(f'Saved image as {save_name}', lineno)
-    else:
+
+    if not isinstance(img, np.ndarray):
         quick_print(f"Your img is not a fucking numpy array you twat, couldn't save {name}", lineno)
+        return
 
+    save_name = name + f'{time.time()}'
+    arr = img
+    if arr.ndim == 3 and arr.shape[2] == 3:
+        im = Image.fromarray(arr)
+    else:
+        g = arr.squeeze()
+        if np.issubdtype(g.dtype, np.floating):
+            g = (np.clip(g, 0, 1) * 255).astype(np.uint8)
+        else:
+            g = g.astype(np.uint8)
+        im = Image.fromarray(g, mode='L')
 
-
+    path = os.path.join(file, f'{save_name}.png')
+    im.save(path)
+    if not mute:
+        quick_print(f'Saved image as {save_name}', lineno)
 
 class _load_audio:
     def __init__(self):
