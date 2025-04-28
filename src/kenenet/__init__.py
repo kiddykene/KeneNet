@@ -186,34 +186,32 @@ def save_img(img, name=' ', reset=True, file='temp_screenshots', mute=False):
     if os.path.exists(file):
         if reset and ospid is None:
             zhmiscellany.fileio.empty_directory(file)
-            quick_print(f'Cleaned folder {file}')
+            if not mute: quick_print(f'Cleaned folder {file}')
     else:
         quick_print(f'New folder created {file}')
-        zhmiscellany.fileio.create_folder(file)
+        if not mute: zhmiscellany.fileio.create_folder(file)
     ospid = True
     frame = inspect.currentframe().f_back
     lineno = frame.f_lineno
-
-    if not isinstance(img, np.ndarray):
-        quick_print(f"Your img is not a fucking numpy array you twat, couldn't save {name}", lineno)
-        return
-
-    save_name = name + f'{time.time()}'
-    arr = img
-    if arr.ndim == 3 and arr.shape[2] == 3:
-        im = Image.fromarray(arr)
-    else:
-        g = arr.squeeze()
-        if np.issubdtype(g.dtype, np.floating):
-            g = (np.clip(g, 0, 1) * 255).astype(np.uint8)
+    if isinstance(img, np.ndarray):
+        # detect mask arrays: floating-point, single-channel
+        is_mask = img.dtype.kind == 'f' and (img.ndim == 2 or (img.ndim == 3 and img.shape[-1] == 1))
+        save_name = name + f'{time.time()}'
+        if is_mask:
+            # scale mask values [0.0,1.0] to [0,255] grayscale
+            mask_uint8 = (img.squeeze() * 255).clip(0,255).astype(np.uint8)
+            img_to_save = Image.fromarray(mask_uint8)
         else:
-            g = g.astype(np.uint8)
-        im = Image.fromarray(g, mode='L')
+            img_to_save = Image.fromarray(img)
+        img_to_save.save(fr'{file}\{save_name}.png')
+        if not mute:
+            quick_print(f'Saved image as {save_name}', lineno)
+    else:
+        quick_print(f"Your img is not a fucking numpy array you twat, couldn't save {name}", lineno)
 
-    path = os.path.join(file, f'{save_name}.png')
-    im.save(path)
-    if not mute:
-        quick_print(f'Saved image as {save_name}', lineno)
+
+
+
 
 class _load_audio:
     def __init__(self):
