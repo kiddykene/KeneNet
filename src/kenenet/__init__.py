@@ -183,35 +183,45 @@ def pp(msg='caca', subdir=None, pps=3):
 
 def save_img(img, name=' ', reset=True, file='temp_screenshots', mute=False):
     global ospid
+    # Ensure directory exists or clean if needed
     if os.path.exists(file):
         if reset and ospid is None:
             zhmiscellany.fileio.empty_directory(file)
-            if not mute: quick_print(f'Cleaned folder {file}')
+            quick_print(f'Cleaned folder {file}')
     else:
         quick_print(f'New folder created {file}')
-        if not mute: zhmiscellany.fileio.create_folder(file)
+        zhmiscellany.fileio.create_folder(file)
+
     ospid = True
     frame = inspect.currentframe().f_back
     lineno = frame.f_lineno
+
     if isinstance(img, np.ndarray):
-        # detect mask arrays: floating-point, single-channel
+        # Detect mask arrays: floating-point, single-channel
         is_mask = img.dtype.kind == 'f' and (img.ndim == 2 or (img.ndim == 3 and img.shape[-1] == 1))
-        save_name = name + f'{time.time()}'
+
+        # Construct timestamped, sanitized filename
+        timestamp = time.time()
+        # Sanitize the provided name to remove invalid filesystem chars
+        safe_name = re.sub(r'[^A-Za-z0-9._-]', '_', name)
+        save_name = f"{safe_name}{timestamp}"
+
+        # Prepare image to save
         if is_mask:
-            # scale mask values [0.0,1.0] to [0,255] grayscale
-            mask_uint8 = (img.squeeze() * 255).clip(0,255).astype(np.uint8)
+            # Scale mask [0.0,1.0] to [0,255] grayscale
+            mask_uint8 = (img.squeeze() * 255).clip(0, 255).astype(np.uint8)
             img_to_save = Image.fromarray(mask_uint8)
         else:
             img_to_save = Image.fromarray(img)
-        img_to_save.save(fr'{file}\{save_name}.png')
+
+        # Save file
+        save_path = os.path.join(file, f"{save_name}.png")
+        img_to_save.save(save_path)
+
         if not mute:
             quick_print(f'Saved image as {save_name}', lineno)
     else:
         quick_print(f"Your img is not a fucking numpy array you twat, couldn't save {name}", lineno)
-
-
-
-
 
 class _load_audio:
     def __init__(self):
