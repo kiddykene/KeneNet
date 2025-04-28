@@ -183,7 +183,6 @@ def pp(msg='caca', subdir=None, pps=3):
 
 def save_img(img, name=' ', reset=True, file='temp_screenshots', mute=False):
     global ospid
-    # Ensure target directory exists or is cleaned once
     if os.path.exists(file):
         if reset and ospid is None:
             zhmiscellany.fileio.empty_directory(file)
@@ -192,35 +191,22 @@ def save_img(img, name=' ', reset=True, file='temp_screenshots', mute=False):
         quick_print(f'New folder created {file}')
         zhmiscellany.fileio.create_folder(file)
     ospid = True
-
-    # Determine caller line number for logging
     frame = inspect.currentframe().f_back
     lineno = frame.f_lineno
-
     if isinstance(img, np.ndarray):
-        # Detect mask arrays: floating-point, single-channel
-        is_mask = img.dtype.kind == 'f' and (img.ndim == 2 or (img.ndim == 3 and img.shape[-1] == 1))
-
-        # Sanitize name to avoid invalid filename characters
-        raw_name = str(name).strip()
-        safe_name = re.sub(r'[^A-Za-z0-9_-]+', '_', raw_name)
-        timestamp = f'{time.time():.6f}'  # more compact timestamp
-        save_name = f"{safe_name}_{timestamp}"
-
-        # Prepare image for saving
-        if is_mask:
-            # Scale mask values [0.0,1.0] to [0,255] grayscale
-            mask_uint8 = (img.squeeze() * 255).clip(0, 255).astype(np.uint8)
-            img_to_save = Image.fromarray(mask_uint8)
+        if ((img.ndim == 2 or (img.ndim == 3 and img.shape[-1] == 1)) and img.dtype.kind == "f" and img.min() >= 0.0 and img.max() <= 1.0):
+            img = Image.fromarray((img * 255).astype(np.uint8))
+            img.save(path)
+        elif ((img.ndim == 2 or (img.ndim == 3 and img.shape[-1] == 1)) and (img.min() < 0.0 or img.max() > 1.0)):
+            mask_normalized = np.clip(img / img.max(), 0.0, 1.0)
+            # Convert to uint8 and save as an image
+            img = Image.fromarray((mask_normalized * 255).astype(np.uint8))
+            img.save("normalized_mask_view.png")
         else:
-            img_to_save = Image.fromarray(img)
-
-        # Save to disk
-        filepath = os.path.join(file, f"{save_name}.png")
-        img_to_save.save(filepath)
-
-        if not mute:
-            quick_print(f'Saved image as {save_name}', lineno)
+            save_name = name + f'{time.time()}'
+            img = Image.fromarray(img)
+            img.save(fr'{file}\{save_name}.png')
+        if not mute: quick_print(f'Saved image as {save_name}', lineno)
     else:
         quick_print(f"Your img is not a fucking numpy array you twat, couldn't save {name}", lineno)
 
