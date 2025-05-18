@@ -520,6 +520,8 @@ def time_loop(iterable, cutoff_time=0.1):
         yield item
         if time.time() > end_time:
             break
+            
+ct = time_loop
 
 def get_focused_process_name(mute=False):
     hwnd = win32gui.GetForegroundWindow()
@@ -543,7 +545,17 @@ def coord_rgb(coord=None):
         return rgb
     else: return None
 
-ct = time_loop
+cr = coord_rgb
+
+def rgb_at_coord(coord=None, rgb=None, range=1):
+    if not coord or not rgb:
+        return False
+    with mss.mss() as sct:
+        region = {"left": coord[0], "top": coord[1], "width": 1, "height": 1}
+        rgb_ac = sct.grab(region).pixel(0, 0)
+    return all(abs(a - b) <= range for a, b in zip(rgb_ac, rgb))
+
+rac = rgb_at_coord
 
 class k:
     pass
