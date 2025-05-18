@@ -534,6 +534,15 @@ def get_focused_process_name(mute=False):
     except psutil.NoSuchProcess:
         return None
 
+def coord_rgb(coord=None):
+    if coord is not None:
+        with mss.mss() as sct:
+            region = {"left": coord[0], "top": coord[1], "width": 1, "height": 1}
+            screenshot = sct.grab(region)
+            rgb = screenshot.pixel(0, 0)
+        return rgb
+    else: return None
+
 ct = time_loop
 
 class k:
