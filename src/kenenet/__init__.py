@@ -1,4 +1,4 @@
-import sys, zhmiscellany, keyboard, mss, time, linecache, os, random, pyperclip, inspect, re
+import sys, zhmiscellany, keyboard, mss, time, linecache, os, random, pyperclip, inspect, re, ast
 import numpy as np
 from PIL import Image
 from collections import defaultdict
@@ -556,6 +556,21 @@ def rgb_at_coord(coord=None, rgb=None, range=1):
     return all(abs(a - b) <= range for a, b in zip(rgb_ac, rgb))
 
 rac = rgb_at_coord
+
+def if_condition(s):
+    e = s.strip()[3:] if s.strip().startswith("if ") else s
+    tree = ast.parse(e, mode="eval").body
+    ctx = {**inspect.currentframe().f_back.f_globals, **inspect.currentframe().f_back.f_locals}
+    full = eval(compile(ast.Expression(tree), "<ast>", "eval"), ctx)
+    parts = tree.values if isinstance(tree, ast.BoolOp) and isinstance(tree.op, ast.And) else [tree]
+    out = []
+    for p in parts:
+        code = ast.unparse(p)
+        val = eval(compile(ast.Expression(p), "<ast>", "eval"), ctx)
+        out.append(f"'{code}': {val}")
+    quick_print(f"Overall: {str(full).upper()}, " + ", ".join(out))
+    
+if_cond = if_condition
 
 class k:
     pass
