@@ -536,7 +536,7 @@ def get_focused_process_name(mute=False):
     except psutil.NoSuchProcess:
         return None
 
-def coord_rgb(coord=None):
+def rgb_at_coord(coord=None):
     if coord is not None:
         with mss.mss() as sct:
             region = {"left": coord[0], "top": coord[1], "width": 1, "height": 1}
@@ -545,9 +545,9 @@ def coord_rgb(coord=None):
         return rgb
     else: return None
 
-cr = coord_rgb
+cr = rgb_at_coord
 
-def rgb_at_coord(coord=None, rgb=None, range=1):
+def rgb_is_at_coord(coord=None, rgb=None, range=1):
     if not coord or not rgb:
         return False
     with mss.mss() as sct:
@@ -555,7 +555,7 @@ def rgb_at_coord(coord=None, rgb=None, range=1):
         rgb_ac = sct.grab(region).pixel(0, 0)
     return all(abs(a - b) <= range for a, b in zip(rgb_ac, rgb))
 
-rac = rgb_at_coord
+irac = rgb_is_at_coord
 
 def if_condition(s):
     e = s.strip()[3:] if s.strip().startswith("if ") else s
@@ -568,9 +568,87 @@ def if_condition(s):
         code = ast.unparse(p)
         val = eval(compile(ast.Expression(p), "<ast>", "eval"), ctx)
         out.append(f"'{code}': {val}")
-    quick_print(f"Overall: {str(full).upper()}, " + ", ".join(out))
+    frame = inspect.currentframe().f_back
+    lineno = frame.f_lineno
+    quick_print(f"Overall: {str(full).upper()}, " + ", ".join(out), lineno)
     
 if_cond = if_condition
+
+def translate_morse_from_cursor(color_figuring=2.0, listen_duration=10.0, sample_interval=0.05, color_threshhold=15, mute=False):
+    _TARGET = zhmiscellany.misc.get_mouse_xy()
+    time.sleep(3)
+    found = []
+    t0 = time.time()
+    while time.time() - t0 < color_figuring:
+        c = rgb_at_coord(_TARGET)
+        if not any(math.dist(c, f) < color_threshhold for f in found):
+            found.append(c)
+            if len(found) >= 2:
+                break
+        time.sleep(sample_interval)
+    if len(found) >= 2:
+        c0, c1 = sorted(found, key=lambda c: (0.299*c[0] + 0.587*c[1] + 0.114*c[2]) / 255)
+    else:
+        c0, c1 = (found[0] if found else (0,0,0)), None
+    if not mute: quick_print(f'started recording, 2 colors are {c0, c1}')
+    raw, state = [], None
+    start = time.time()
+    while time.time() - start < listen_duration:
+        p = rgb_at_coord(_TARGET)
+        if c1 is not None:
+            s = '1' if math.dist(p, c1) < math.dist(p, c0) else '0'
+        else:
+            s = '0' if math.dist(p, c0) < color_threshhold else '1'
+        now = time.time()
+        if state is None:
+            state, ts = s, now
+        elif s != state:
+            raw.append((state, now - ts))
+            state, ts = s, now
+        time.sleep(max(0, sample_interval - (time.time() - now)))
+    if state:
+        raw.append((state, time.time() - ts))
+
+    ones = [d for s,d in raw if s == '1']
+    unit = min(ones) if ones else 0.15
+    pattern, cur = [], ''
+    MORSE = {
+        '.-': 'A', '-...': 'B', '-.-.': 'C', '-..': 'D', '.': 'E',
+        '..-.': 'F', '--.': 'G', '....': 'H', '..': 'I', '.---': 'J',
+        '-.-': 'K', '.-..': 'L', '--': 'M', '-.': 'N', '---': 'O',
+        '.--.': 'P', '--.-': 'Q', '.-.': 'R', '...': 'S', '-': 'T',
+        '..-': 'U', '...-': 'V', '.--': 'W', '-..-': 'X', '-.--': 'Y',
+        '--..': 'Z',
+        '-----': '0', '.----': '1', '..---': '2', '...--': '3', '....-': '4',
+        '.....': '5', '-....': '6', '--...': '7', '---..': '8', '----.': '9',
+        '.-.-.-': '.', '--..--': ',', '---...': ':', '..--..': '?',
+        '.----.': "'", '-.-.--': '!', '-..-.': '/', '.-..-.': '"',
+        '-....-': '-', '.-...': '&', '-.-.-.': ';', '...-.-': '$',
+        '.-.-.': '+', '.-..-': '_', '...---...': 'SOS'
+    }
+
+    for s, d in raw:
+        if s == '1':
+            cur += '.' if abs(d - unit) < unit*0.5 else '-'
+        else:
+            if cur:
+                if abs(d - unit) < unit*0.5:
+                    pass
+                elif abs(d - 3*unit) < unit*0.5:
+                    pattern.append(cur); cur = ''
+                elif abs(d - 7*unit) < unit*0.5:
+                    pattern.append(cur); pattern.append(' '); cur = ''
+                else:
+                    pattern.append(cur); cur = ''
+            else:
+                if abs(d - 7*unit) < unit*0.5:
+                    pattern.append(' ')
+    if cur:
+        pattern.append(cur)
+
+    result = ''.join(' ' if e == ' ' else MORSE.get(e, '[?]') for e in pattern).strip()
+    if not mute: quick_print(result)
+    return result
 
 class k:
     pass
