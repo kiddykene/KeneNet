@@ -28,16 +28,13 @@ def get_pos(timer=3.0, key='f7', timed_key='f8', kill=False):
     coord_rgb = []
     coords = []
     
-    def _get_pos(key, kill=False):
+    def _get_pos(key, timed_key, kill=False):
         while True:
-            pressed_key = keyboard.wait(key)
-            if pressed_key == timed_key:
-                quick_print(f"Pausing for {timer} seconds...")
+            keyboard.wait([key, timed_key])
+            if keyboard.is_pressed(timed_key):
+                quick_print(f"Timed key pressed. Pausing for {timer} seconds...")
                 time.sleep(timer)
-            
             x, y = zhmiscellany.misc.get_mouse_xy()
-            if timer:
-                quick_print('')
             with mss.mss() as sct:
                 region = {"left": x, "top": y, "width": 1, "height": 1}
                 screenshot = sct.grab(region)
@@ -54,7 +51,7 @@ def get_pos(timer=3.0, key='f7', timed_key='f8', kill=False):
     quick_print(f'Press {key} for cursor info (or {timed_key} for a {timer}s wait before), automatically copies coords/rgb to clipboard')
     frame = inspect.currentframe().f_back
     lineno = frame.f_lineno
-    _get_pos(key, kill)
+    _get_pos(key, timed_key, kill)
 
 def timer(clock=1):
     if clock in timings:
