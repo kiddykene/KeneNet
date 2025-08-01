@@ -43,13 +43,13 @@ def get_pos(timer=3.0, key='f7', timed_key='f8', kill=False):
             
     def _non_timer():
         x, y = zhmiscellany.misc.get_mouse_xy()
-        get_pos(x, y)
+        _get_pos(x, y)
     
     def _timer():
         x, y = zhmiscellany.misc.get_mouse_xy()
         quick_print(f'waiting {timer} seconds')
         time.sleep(timer)
-        get_pos(x, y)
+        _get_pos(x, y)
         
     quick_print(f'Press {key} for cursor info (or {timed_key} for a {timer}s wait before), automatically copies coords/rgb to clipboard')
     keyboard.on_press_key('f7', lambda e: _non_timer())
