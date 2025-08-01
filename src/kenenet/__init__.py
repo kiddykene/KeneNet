@@ -54,6 +54,8 @@ def get_pos(timer=3.0, key='f7', timed_key='f8', kill=False):
     quick_print(f'Press {key} for cursor info (or {timed_key} for a {timer}s wait before), automatically copies coords/rgb to clipboard')
     keyboard.on_press_key('f7', lambda e: _non_timer())
     keyboard.on_press_key('f8', lambda e: _timer())
+    while True:
+        time.sleep(5)
 
 def timer(clock=1):
     if clock in timings:
