@@ -36,7 +36,7 @@ def get_pos(timer=3.0, key='f7', timed_key='f8', kill=False):
         coord_rgb.append({'coord': (x,y), 'RGB': rgb})
         coords.append((x,y))
         pyperclip.copy(f'coords_rgb = {coord_rgb}\ncoords = {coords}')
-        quick_print(f"Added Coordinates: ({str(x).rjust(3)},{str(y).rjust(3)}), RGB: {str(rgb).ljust(15)} {color}████████{reset} to clipboard", lineno)
+        quick_print(f"Added Coordinates: ({str(x).rjust(3)},{str(y).rjust(3)}), RGB: {str(rgb).ljust(15)} {color}████████{reset} to clipboard")
         if kill:
             quick_print('killing process')
             zhmiscellany.misc.die()
