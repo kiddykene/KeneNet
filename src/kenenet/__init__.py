@@ -23,35 +23,37 @@ def quick_print(message, l=None):
     if l: sys.stdout.write(f"\033[38;2;0;255;26m{l} || {message}\033[0m\n")
     else: sys.stdout.write(f"\033[38;2;0;255;26m {message}\033[0m\n")
 
-
 def get_pos(timer=3.0, key='f7', timed_key='f8', kill=False):
     coord_rgb = []
     coords = []
+    def _get_pos(x, y):
+        with mss.mss() as sct:
+            region = {"left": x, "top": y, "width": 1, "height": 1}
+            screenshot = sct.grab(region)
+            rgb = screenshot.pixel(0, 0)
+        color = f"\033[38;2;{rgb[0]};{rgb[1]};{rgb[2]}m"
+        reset = "\033[38;2;0;255;26m"
+        coord_rgb.append({'coord': (x,y), 'RGB': rgb})
+        coords.append((x,y))
+        pyperclip.copy(f'coords_rgb = {coord_rgb}\ncoords = {coords}')
+        quick_print(f"Added Coordinates: ({str(x).rjust(3)},{str(y).rjust(3)}), RGB: {str(rgb).ljust(15)} {color}████████{reset} to clipboard", lineno)
+        if kill:
+            quick_print('killing process')
+            zhmiscellany.misc.die()
+            
+    def _non_timer():
+        x, y = zhmiscellany.misc.get_mouse_xy()
+        get_pos(x, y)
     
-    def _get_pos(key, timed_key, kill=False):
-        while True:
-            keyboard.wait([key, timed_key])
-            if keyboard.is_pressed(timed_key):
-                quick_print(f"Timed key pressed. Pausing for {timer} seconds...")
-                time.sleep(timer)
-            x, y = zhmiscellany.misc.get_mouse_xy()
-            with mss.mss() as sct:
-                region = {"left": x, "top": y, "width": 1, "height": 1}
-                screenshot = sct.grab(region)
-                rgb = screenshot.pixel(0, 0)
-            color = f"\033[38;2;{rgb[0]};{rgb[1]};{rgb[2]}m"
-            reset = "\033[38;2;0;255;26m"
-            coord_rgb.append({'coord': (x, y), 'RGB': rgb})
-            coords.append((x, y))
-            pyperclip.copy(f'coords_rgb = {coord_rgb}\ncoords = {coords}')
-            quick_print(f"Added Coordinates: ({str(x).rjust(3)},{str(y).rjust(3)}), RGB: {str(rgb).ljust(15)} {color}████████{reset} to clipboard", lineno)
-            if kill:
-                quick_print('killing process')
-                zhmiscellany.misc.die()
+    def _timer():
+        x, y = zhmiscellany.misc.get_mouse_xy()
+        quick_print(f'waiting {timer} seconds')
+        time.sleep(timer)
+        get_pos(x, y)
+        
     quick_print(f'Press {key} for cursor info (or {timed_key} for a {timer}s wait before), automatically copies coords/rgb to clipboard')
-    frame = inspect.currentframe().f_back
-    lineno = frame.f_lineno
-    _get_pos(key, timed_key, kill)
+    keyboard.on_press_key('f7', lambda e: _non_timer())
+    keyboard.on_press_key('f8', lambda e: _timer())
 
 def timer(clock=1):
     if clock in timings:
