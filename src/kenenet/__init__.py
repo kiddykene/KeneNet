@@ -8,12 +8,12 @@ from pydub import AudioSegment
 from zhmiscellany._processing_supportfuncs import _ray_init_thread
 import zhmiscellany.processing
 import math
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
 import win32gui
 import win32process
 import psutil
 
-os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import io
 global timings, ospid, debug_mode
 ospid, debug_mode = None, False
@@ -23,27 +23,35 @@ def quick_print(message, l=None):
     if l: sys.stdout.write(f"\033[38;2;0;255;26m{l} || {message}\033[0m\n")
     else: sys.stdout.write(f"\033[38;2;0;255;26m {message}\033[0m\n")
 
-def get_pos(key='f10', kill=False):
+
+def get_pos(timer=3.0, key='f7', timed_key='f8', kill=False):
     coord_rgb = []
     coords = []
+    
     def _get_pos(key, kill=False):
         while True:
-            keyboard.wait(key)
+            pressed_key = keyboard.wait(key)
+            if pressed_key == timed_key:
+                quick_print(f"Pausing for {timer} seconds...")
+                time.sleep(timer)
+            
             x, y = zhmiscellany.misc.get_mouse_xy()
+            if timer:
+                quick_print('')
             with mss.mss() as sct:
                 region = {"left": x, "top": y, "width": 1, "height": 1}
                 screenshot = sct.grab(region)
                 rgb = screenshot.pixel(0, 0)
             color = f"\033[38;2;{rgb[0]};{rgb[1]};{rgb[2]}m"
             reset = "\033[38;2;0;255;26m"
-            coord_rgb.append({'coord': (x,y), 'RGB': rgb})
-            coords.append((x,y))
+            coord_rgb.append({'coord': (x, y), 'RGB': rgb})
+            coords.append((x, y))
             pyperclip.copy(f'coords_rgb = {coord_rgb}\ncoords = {coords}')
             quick_print(f"Added Coordinates: ({str(x).rjust(3)},{str(y).rjust(3)}), RGB: {str(rgb).ljust(15)} {color}████████{reset} to clipboard", lineno)
             if kill:
                 quick_print('killing process')
                 zhmiscellany.misc.die()
-    quick_print(f'Press {key} when ever you want the location, automatically copies coords/rgb to clipboard')
+    quick_print(f'Press {key} for cursor info (or {timed_key} for a {timer}s wait before), automatically copies coords/rgb to clipboard')
     frame = inspect.currentframe().f_back
     lineno = frame.f_lineno
     _get_pos(key, kill)
@@ -573,82 +581,6 @@ def if_condition(s):
     quick_print(f"Overall: {str(full).upper()}, " + ", ".join(out), lineno)
     
 if_cond = if_condition
-
-def translate_morse_from_cursor(color_figuring=2.0, listen_duration=10.0, sample_interval=0.05, color_threshhold=15, mute=False):
-    _TARGET = zhmiscellany.misc.get_mouse_xy()
-    time.sleep(3)
-    found = []
-    t0 = time.time()
-    while time.time() - t0 < color_figuring:
-        c = rgb_at_coord(_TARGET)
-        if not any(math.dist(c, f) < color_threshhold for f in found):
-            found.append(c)
-            if len(found) >= 2:
-                break
-        time.sleep(sample_interval)
-    if len(found) >= 2:
-        c0, c1 = sorted(found, key=lambda c: (0.299*c[0] + 0.587*c[1] + 0.114*c[2]) / 255)
-    else:
-        c0, c1 = (found[0] if found else (0,0,0)), None
-    if not mute: quick_print(f'started recording, 2 colors are {c0, c1}')
-    raw, state = [], None
-    start = time.time()
-    while time.time() - start < listen_duration:
-        p = rgb_at_coord(_TARGET)
-        if c1 is not None:
-            s = '1' if math.dist(p, c1) < math.dist(p, c0) else '0'
-        else:
-            s = '0' if math.dist(p, c0) < color_threshhold else '1'
-        now = time.time()
-        if state is None:
-            state, ts = s, now
-        elif s != state:
-            raw.append((state, now - ts))
-            state, ts = s, now
-        time.sleep(max(0, sample_interval - (time.time() - now)))
-    if state:
-        raw.append((state, time.time() - ts))
-
-    ones = [d for s,d in raw if s == '1']
-    unit = min(ones) if ones else 0.15
-    pattern, cur = [], ''
-    MORSE = {
-        '.-': 'A', '-...': 'B', '-.-.': 'C', '-..': 'D', '.': 'E',
-        '..-.': 'F', '--.': 'G', '....': 'H', '..': 'I', '.---': 'J',
-        '-.-': 'K', '.-..': 'L', '--': 'M', '-.': 'N', '---': 'O',
-        '.--.': 'P', '--.-': 'Q', '.-.': 'R', '...': 'S', '-': 'T',
-        '..-': 'U', '...-': 'V', '.--': 'W', '-..-': 'X', '-.--': 'Y',
-        '--..': 'Z',
-        '-----': '0', '.----': '1', '..---': '2', '...--': '3', '....-': '4',
-        '.....': '5', '-....': '6', '--...': '7', '---..': '8', '----.': '9',
-        '.-.-.-': '.', '--..--': ',', '---...': ':', '..--..': '?',
-        '.----.': "'", '-.-.--': '!', '-..-.': '/', '.-..-.': '"',
-        '-....-': '-', '.-...': '&', '-.-.-.': ';', '...-.-': '$',
-        '.-.-.': '+', '.-..-': '_', '...---...': 'SOS'
-    }
-
-    for s, d in raw:
-        if s == '1':
-            cur += '.' if abs(d - unit) < unit*0.5 else '-'
-        else:
-            if cur:
-                if abs(d - unit) < unit*0.5:
-                    pass
-                elif abs(d - 3*unit) < unit*0.5:
-                    pattern.append(cur); cur = ''
-                elif abs(d - 7*unit) < unit*0.5:
-                    pattern.append(cur); pattern.append(' '); cur = ''
-                else:
-                    pattern.append(cur); cur = ''
-            else:
-                if abs(d - 7*unit) < unit*0.5:
-                    pattern.append(' ')
-    if cur:
-        pattern.append(cur)
-
-    result = ''.join(' ' if e == ' ' else MORSE.get(e, '[?]') for e in pattern).strip()
-    if not mute: quick_print(result)
-    return result
 
 class k:
     pass
