@@ -1,0 +1,14 @@
+zhmiscellany
+keyboard
+mss
+pyperclip
+numpy
+Pillow
+pydub
+pygame
+psutil
+opencv-python
+pyautogui
+
+[:sys_platform == "win32"]
+pywin32
