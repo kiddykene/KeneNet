@@ -3,9 +3,7 @@ import numpy as np
 from PIL import Image
 from collections import defaultdict
 import threading
-import pyaudio
 from pydub import AudioSegment
-from zhmiscellany._processing_supportfuncs import _ray_init_thread
 import zhmiscellany.processing
 import math
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
@@ -13,7 +11,7 @@ import pygame
 import win32gui
 import win32process
 import psutil
-
+import cv2
 import io
 global timings, ospid, debug_mode
 ospid, debug_mode = None, False
@@ -582,6 +580,34 @@ def if_condition(s):
     quick_print(f"Overall: {str(full).upper()}, " + ", ".join(out), lineno)
     
 if_cond = if_condition
+
+
+def find_template(image_path, threshold=0.6, speed=0.0, grayscale=False, data=False):
+    template = cv2.imread(image_path, 0 if grayscale else 1)
+    if template is None:
+        return None
+    scale = max(0.01, 1.0 - min(max(speed, 0), 1))
+    screenshot = np.array(pyautogui.screenshot())
+    screenshot = cv2.cvtColor(screenshot, cv2.COLOR_RGB2GRAY if grayscale else cv2.COLOR_RGB2BGR)
+    t_h, t_w = template.shape[:2]
+    if scale < 1.0:
+        new_t_size = (max(1, int(t_w * scale)), max(1, int(t_h * scale)))
+        new_s_size = (max(1, int(screenshot.shape[1] * scale)), max(1, int(screenshot.shape[0] * scale)))
+        template = cv2.resize(template, new_t_size, interpolation=cv2.INTER_AREA)
+        screenshot = cv2.resize(screenshot, new_s_size, interpolation=cv2.INTER_AREA)
+    res = cv2.matchTemplate(screenshot, template, cv2.TM_CCOEFF_NORMED)
+    _, max_val, _, max_loc = cv2.minMaxLoc(res)
+    if max_val < threshold:
+        return {'coord': None, 'dim': None, 'conf': None} if data else None
+    
+    if data:
+        return {
+            'coord': (int(max_loc[0] / scale), int(max_loc[1] / scale)),
+            'dim': (t_w, t_h),
+            'conf': max_val
+        }
+    h_p, w_p = template.shape[:2]
+    return (int((max_loc[0] + w_p // 2) / scale), int((max_loc[1] + h_p // 2) / scale))
 
 class k:
     pass
