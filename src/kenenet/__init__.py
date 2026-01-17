@@ -6,6 +6,7 @@ import threading
 from pydub import AudioSegment
 import zhmiscellany.processing
 import math
+import pyautogui
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
 import win32gui
