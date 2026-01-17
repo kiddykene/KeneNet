@@ -158,7 +158,6 @@ def _track_frame(frame, event, arg):
     if event == 'return' and scope != "Global": del tracker.frame_locals[id(frame)]
     return _track_frame
 
-
 def debug():
     global debug_mode
     if not debug_mode:
@@ -320,207 +319,6 @@ def time_func(func, loop=10000, *args, **kwargs):
     quick_print(f'{loop:,}x {func_name} took {elapsed}', lineno)
     return elapsed
 
-
-_timings = defaultdict(list)
-_block_timings = defaultdict(float)
-_current_context = None
-_line_start_time = None
-_stack = []
-_ignore_line = {'frame = inspect.currentframe().f_back', 'filename = frame.f_code.co_filename', 'if _current_context is None:', 'sys.settrace(None)', 'Function: currentframe', 'return sys._getframe(1) if hasattr(sys, "_getframe") else None'}
-_seen_lines = set()  # Track lines we've already processed
-_current_function = None
-_function_lines = defaultdict(set)  # Track which lines belong to which function
-_site_packages_dirs = []  # List to store site-packages directories
-
-# Patterns for generated code constructs to ignore
-_ignore_function_patterns = {
-    '<dictcomp>',
-    '<lambda>',
-    '<setcomp>',
-    '<listcomp>',
-    '<genexpr>',
-    '<comprehension>',
-    '<module>'
-}
-
-
-# Get site-packages directories from sys.path
-for path in sys.path:
-    if 'site-packages' in path or 'dist-packages' in path:
-        _site_packages_dirs.append(path)
-
-
-def _is_package_code(filename):
-    """Check if the given filename is from an imported package."""
-    # Skip if it's in site-packages
-    for site_dir in _site_packages_dirs:
-        if filename.startswith(site_dir):
-            return True
-    
-    # Skip if it's a built-in module
-    if '<' in filename and '>' in filename:  # Handles '<frozen importlib._bootstrap>' etc.
-        return True
-    
-    # Skip standard library modules
-    for path in sys.path:
-        if 'python' in path.lower() and os.path.isdir(path) and not path.endswith('site-packages'):
-            if filename.startswith(path):
-                return True
-    
-    return False
-
-def _is_generated_construct(func_name):
-    """Check if the function name is a generated construct like <dictcomp>, <lambda>, etc."""
-    return any(pattern in func_name for pattern in _ignore_function_patterns)
-
-
-def time_code(label=None):
-    global _current_context, _timings, _line_start_time, _block_timings, _stack, _ignore_line, _seen_lines, _current_function, _function_lines
-    
-    # Get the frame of the caller
-    frame = inspect.currentframe().f_back
-    filename = frame.f_code.co_filename
-    
-    if _current_context is None:
-        # First call - start timing
-        _current_context = label or f"timing_{len(_timings)}"
-        quick_print(f"Starting timer: {_current_context}")
-        _line_start_time = time.time()
-        _block_timings.clear()
-        _stack = []
-        _seen_lines.clear()  # Reset seen lines
-        _function_lines.clear()  # Reset function lines mapping
-        
-        def trace_function(frame, event, arg):
-            global _line_start_time, _stack, _seen_lines, _current_function, _function_lines
-            
-            if _is_package_code(frame.f_code.co_filename):
-                return trace_function
-            
-            if event == 'call':
-                func_name = frame.f_code.co_name
-                
-                # Skip recording generated constructs
-                if _is_generated_construct(func_name):
-                    return trace_function
-                
-                if func_name != 'time_code':
-                    _stack.append((func_name, time.time()))
-                    _current_function = func_name  # Track current function
-                return trace_function
-            
-            elif event == 'return':
-                if _stack:
-                    func_name, start_time = _stack.pop()
-                    
-                    if not _is_generated_construct(func_name):
-                        elapsed = time.time() - start_time
-                        _block_timings[f"Function: {func_name}"] += elapsed
-                    
-                    if _current_function == func_name and _stack:
-                        _current_function = _stack[-1][0]
-                    elif not _stack:
-                        _current_function = None
-                return None
-            
-            elif event == 'line':
-                lineno = frame.f_lineno
-                line_content = linecache.getline(frame.f_code.co_filename, lineno).strip()
-                line_id = f"{lineno}:{line_content}"
-                
-                if not line_content or line_content.startswith('#'):
-                    return trace_function
-                
-                if "time_code" in line_content and _current_context is not None:
-                    return trace_function
-                
-                if _current_function and _is_generated_construct(_current_function):
-                    return trace_function
-                
-                current_time = time.time()
-                if _line_start_time is not None:
-                    elapsed = current_time - _line_start_time
-                    
-                    if _current_function:
-                        _function_lines[_current_function].add(line_id)
-                    
-                    _timings[_current_context].append((lineno, line_content, elapsed, line_id in _seen_lines))
-                    
-                    if re.match(r'\s*(for|while)\s+', line_content):
-                        loop_id = f"Loop at line {lineno}: {line_content[:40]}{'...' if len(line_content) > 40 else ''}"
-                        _block_timings[loop_id] += elapsed
-                    
-                    # Mark this line as seen
-                    _seen_lines.add(line_id)
-                
-                _line_start_time = current_time
-            
-            return trace_function
-        
-        sys.settrace(trace_function)
-    
-    else:
-        sys.settrace(None)
-        context = _current_context
-        _current_context = None
-        _line_start_time = None
-        
-        if not _timings[context]:
-            quick_print(f"No times recorded: {context}")
-            return
-        
-        aggregated_timings = defaultdict(float)
-        first_occurrences = {}
-        
-        for lineno, line_content, elapsed, is_repeat in _timings[context]:
-            line_id = f"{lineno}:{line_content}"
-            aggregated_timings[line_id] += elapsed
-            
-            if line_id not in first_occurrences:
-                first_occurrences[line_id] = (lineno, line_content, elapsed)
-        
-        display_timings = [
-            (lineno, line_content, aggregated_timings[f"{lineno}:{line_content}"])
-            for lineno, line_content, _ in first_occurrences.values()
-            if line_content not in _ignore_line
-        ]
-        
-        sorted_timings = sorted(display_timings, key=lambda x: x[2], reverse=True)
-        
-        quick_print(f"\nTime spent on each line: {context}")
-        quick_print("-" * 80)
-        quick_print(f"{'Line':>6} | {'Time':>12} | Code")
-        quick_print("-" * 80)
-        
-        for lineno, line_content, elapsed in sorted_timings:
-            quick_print(f"{lineno:6d} | {elapsed:12.6f} | {line_content}")
-        
-        quick_print("-" * 80)
-        total_time = sum(elapsed for _, _, elapsed in sorted_timings)
-        quick_print(f"Total execution time: {total_time:.6f}")
-        
-        if _block_timings:
-            quick_print("\nTime spent on chunks of code:")
-            quick_print("-" * 80)
-            quick_print(f"{'Chunks':^40} | {'Time':>12} | {'% of Time Spent':>10}")
-            quick_print("-" * 80)
-            
-            sorted_blocks = sorted(_block_timings.items(), key=lambda x: x[1], reverse=True)
-            
-            for block, elapsed in sorted_blocks:
-                if (not any(ignore in block for ignore in _ignore_line) and
-                        not any(pattern in block for pattern in _ignore_function_patterns)):
-                    percentage = (elapsed / total_time) * 100 if total_time > 0 else 0
-                    quick_print(f"{block[:40]:40} | {elapsed:12.6f} | {percentage:10.2f}%")
-            
-            quick_print("-" * 80)
-        
-        del _timings[context]
-        _block_timings.clear()
-        _seen_lines.clear()
-        _function_lines.clear()
-
-
 def time_loop(iterable, cutoff_time=0.1):
     start_time = time.time()
     end_time = start_time + cutoff_time
@@ -545,6 +343,9 @@ def get_focused_process_name(mute=False):
         return None
 
 def rgb_at_coord(coord=None):
+    """
+    returns the rgb value of a single pixel
+    """
     if coord is not None:
         with mss.mss() as sct:
             region = {"left": coord[0], "top": coord[1], "width": 1, "height": 1}
@@ -556,6 +357,9 @@ def rgb_at_coord(coord=None):
 cr = rgb_at_coord
 
 def rgb_is_at_coord(coord=None, rgb=None, range=1):
+    """
+    returns a bool based on if an rgb is at a coord
+    """
     if not coord or not rgb:
         return False
     with mss.mss() as sct:
@@ -566,6 +370,9 @@ def rgb_is_at_coord(coord=None, rgb=None, range=1):
 irac = rgb_is_at_coord
 
 def if_condition(s):
+    """
+    goes over a long string of conditions and evaluates each one for debugging
+    """
     e = s.strip()[3:] if s.strip().startswith("if ") else s
     tree = ast.parse(e, mode="eval").body
     ctx = {**inspect.currentframe().f_back.f_globals, **inspect.currentframe().f_back.f_locals}
@@ -582,12 +389,18 @@ def if_condition(s):
     
 if_cond = if_condition
 
-
-def find_template(image_path, threshold=0.6, speed=0.0, grayscale=False, data=False):
-    template = cv2.imread(image_path, 0 if grayscale else 1)
+def find_template(image_source, threshold=0.6, compression=0.0, grayscale=False, data=False):
+    """
+    matches a screenshot of a button to where it is on your screen
+    """
+    if isinstance(image_source, str):
+        template = cv2.imread(image_source, 0 if grayscale else 1)
+    else:
+        template = image_source
     if template is None:
         return None
-    scale = max(0.01, 1.0 - min(max(speed, 0), 1))
+    
+    scale = max(0.01, 1.0 - min(max(compression, 0), 1))
     screenshot = np.array(pyautogui.screenshot())
     screenshot = cv2.cvtColor(screenshot, cv2.COLOR_RGB2GRAY if grayscale else cv2.COLOR_RGB2BGR)
     t_h, t_w = template.shape[:2]
@@ -599,7 +412,7 @@ def find_template(image_path, threshold=0.6, speed=0.0, grayscale=False, data=Fa
     res = cv2.matchTemplate(screenshot, template, cv2.TM_CCOEFF_NORMED)
     _, max_val, _, max_loc = cv2.minMaxLoc(res)
     if max_val < threshold:
-        return {'coord': None, 'dim': None, 'conf': None} if data else None
+        return None if data else None
     
     if data:
         return {
@@ -609,6 +422,8 @@ def find_template(image_path, threshold=0.6, speed=0.0, grayscale=False, data=Fa
         }
     h_p, w_p = template.shape[:2]
     return (int((max_loc[0] + w_p // 2) / scale), int((max_loc[1] + h_p // 2) / scale))
+
+click_image = find_template
 
 class k:
     pass
